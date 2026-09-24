@@ -1,0 +1,23 @@
+Subcategory_ID,Subcategory_Name,Category_Name
+SUB01,Order cancellation,Orders & Checkout
+SUB02,Order modification,Orders & Checkout
+SUB03,Checkout failure,Orders & Checkout
+SUB04,Payment declined,Payments & Billing
+SUB05,Duplicate charge,Payments & Billing
+SUB06,Invoice/tax issue,Payments & Billing
+SUB07,Late delivery,Delivery & Logistics
+SUB08,Wrong delivery address,Delivery & Logistics
+SUB09,Damaged parcel,Delivery & Logistics
+SUB10,Missing parcel,Delivery & Logistics
+SUB11,Return request,Returns & Refunds
+SUB12,Refund delayed,Returns & Refunds
+SUB13,Wrong refund amount,Returns & Refunds
+SUB14,Password/login issue,Account & Security
+SUB15,Account takeover concern,Account & Security
+SUB16,Defective product,Product Quality
+SUB17,Wrong item received,Product Quality
+SUB18,Promotion not applied,Promotions & Pricing
+SUB19,Website/app error,Technical Support
+SUB20,Agent/service complaint,Customer Service
+SUB21,Privacy/data request,Privacy & Data
+SUB22,Data/security incident,Privacy & Data

@@ -1,0 +1,13 @@
+NovaMart Complaint Handling SOP
+
+Support agents must acknowledge customer complaints.
+
+Agents must collect required information before final
+resolution.
+
+If evidence conflicts with the available records, the case
+must be escalated according to the applicable escalation
+rules.
+
+Customer-facing responses must not contain unsupported
+dates, amounts, approvals, or guarantees.

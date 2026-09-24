@@ -1,0 +1,201 @@
+Complaint_Text,Expected_Category,Expected_Subcategory,Expected_Department,Expected_Escalation
+My account shows a login from a device I do not recognize.,Account & Security,Account takeover concern,Account Security,True
+Someone changed my account details without my permission.,Account & Security,Account takeover concern,Account Security,True
+I noticed activity on my account that was not performed by me.,Account & Security,Account takeover concern,Account Security,True
+A stranger appears to have accessed my customer account.,Account & Security,Account takeover concern,Account Security,True
+My account was accessed while I was not using it.,Account & Security,Account takeover concern,Account Security,True
+I received a security alert for an unfamiliar login.,Account & Security,Account takeover concern,Account Security,True
+My account information has been changed by someone else.,Account & Security,Account takeover concern,Account Security,True
+I believe another person has gained access to my account.,Account & Security,Account takeover concern,Account Security,True
+There is unauthorized activity in my account history.,Account & Security,Account takeover concern,Account Security,True
+Support staff were rude when I asked for help.,Customer Service,Agent/service complaint,Customer Support,False
+The customer service representative did not help resolve my issue.,Customer Service,Agent/service complaint,Customer Support,False
+I was transferred between several agents without getting an answer.,Customer Service,Agent/service complaint,Customer Support,False
+The support agent ended the conversation before solving my problem.,Customer Service,Agent/service complaint,Customer Support,False
+I had a poor experience with the customer service team.,Customer Service,Agent/service complaint,Customer Support,False
+The representative gave me no useful assistance.,Customer Service,Agent/service complaint,Customer Support,False
+Customer support ignored the details of my complaint.,Customer Service,Agent/service complaint,Customer Support,False
+The agent handling my case was unhelpful.,Customer Service,Agent/service complaint,Customer Support,False
+I contacted support but the representative failed to address my issue.,Customer Service,Agent/service complaint,Customer Support,False
+The checkout page stops working when I try to place my order.,Orders & Checkout,Checkout failure,Order Operations,False
+I cannot complete checkout because the page keeps failing.,Orders & Checkout,Checkout failure,Order Operations,False
+The place-order button does nothing when I click it.,Orders & Checkout,Checkout failure,Order Operations,False
+An error appears whenever I try to complete checkout.,Orders & Checkout,Checkout failure,Order Operations,False
+My cart is ready but checkout will not proceed.,Orders & Checkout,Checkout failure,Order Operations,False
+The checkout process gets stuck before payment.,Orders & Checkout,Checkout failure,Order Operations,False
+I am unable to submit my order from the checkout page.,Orders & Checkout,Checkout failure,Order Operations,False
+The website will not let me finish the checkout process.,Orders & Checkout,Checkout failure,Order Operations,False
+Checkout fails every time I attempt to place the purchase.,Orders & Checkout,Checkout failure,Order Operations,False
+The package arrived with a crushed box and damaged contents.,Product Quality,Damaged parcel,Returns & Quality,False
+My parcel was damaged during delivery.,Product Quality,Damaged parcel,Returns & Quality,False
+The item inside my shipment arrived broken.,Product Quality,Damaged parcel,Returns & Quality,False
+The delivery box was badly damaged when it arrived.,Product Quality,Damaged parcel,Returns & Quality,False
+I opened my parcel and found the product physically damaged.,Product Quality,Damaged parcel,Returns & Quality,False
+The courier delivered a package that was torn and damaged.,Product Quality,Damaged parcel,Returns & Quality,False
+My order was damaged before I received it.,Product Quality,Damaged parcel,Returns & Quality,False
+The product was damaged inside the shipping package.,Product Quality,Damaged parcel,Returns & Quality,False
+My delivery arrived with visible physical damage.,Product Quality,Damaged parcel,Returns & Quality,False
+My personal information may have been exposed.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+I believe customer data was accessed without authorization.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+My private information may have been disclosed to someone else.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+There may have been a security breach involving my data.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+I suspect my stored personal information was exposed.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+My customer records may have been accessed improperly.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+I received information suggesting my personal data was exposed.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+I am concerned about unauthorized access to my private information.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+My personal customer records may have been involved in a security incident.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+The product I received does not work properly.,Product Quality,Defective product,Returns & Quality,False
+My new item is faulty and cannot be used.,Product Quality,Defective product,Returns & Quality,False
+The device arrived with a manufacturing defect.,Product Quality,Defective product,Returns & Quality,False
+The product stopped working immediately after delivery.,Product Quality,Defective product,Returns & Quality,False
+My item has a defect even though the package was undamaged.,Product Quality,Defective product,Returns & Quality,False
+The product I purchased is malfunctioning.,Product Quality,Defective product,Returns & Quality,False
+I received a faulty product from my order.,Product Quality,Defective product,Returns & Quality,False
+The item does not function as advertised because of a defect.,Product Quality,Defective product,Returns & Quality,False
+My newly delivered product is defective.,Product Quality,Defective product,Returns & Quality,False
+My card was charged twice for one purchase.,Payments & Billing,Duplicate charge,Payments & Finance,False
+I see two identical charges for the same order.,Payments & Billing,Duplicate charge,Payments & Finance,False
+The same transaction appears twice on my statement.,Payments & Billing,Duplicate charge,Payments & Finance,False
+I paid once but the system charged me two times.,Payments & Billing,Duplicate charge,Payments & Finance,False
+There are duplicate charges for my purchase.,Payments & Billing,Duplicate charge,Payments & Finance,False
+My account shows two payments for one order.,Payments & Billing,Duplicate charge,Payments & Finance,False
+I was billed twice even though I placed only one order.,Payments & Billing,Duplicate charge,Payments & Finance,False
+The payment was deducted twice for the same purchase.,Payments & Billing,Duplicate charge,Payments & Finance,False
+I have two identical payment transactions for one order.,Payments & Billing,Duplicate charge,Payments & Finance,False
+The tax amount on my invoice is incorrect.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+My invoice contains the wrong tax calculation.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+The tax shown on my bill does not look correct.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+My billing document has incorrect tax information.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+The invoice lists an incorrect tax amount.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+I think the tax calculation on my invoice is wrong.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+My receipt shows a tax amount that I was not expecting.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+There is a tax discrepancy on my order invoice.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+The invoice I received has an incorrect tax charge.,Payments & Billing,Invoice/tax issue,Payments & Finance,False
+My delivery is later than the promised date.,Delivery & Logistics,Late delivery,Logistics,False
+The courier has not delivered my order on time.,Delivery & Logistics,Late delivery,Logistics,False
+The expected delivery date has already passed.,Delivery & Logistics,Late delivery,Logistics,False
+My shipment is overdue.,Delivery & Logistics,Late delivery,Logistics,False
+My package is still not here even though the estimated date passed.,Delivery & Logistics,Late delivery,Logistics,False
+The courier missed the promised delivery date.,Delivery & Logistics,Late delivery,Logistics,False
+My order has been delayed beyond the expected date.,Delivery & Logistics,Late delivery,Logistics,False
+The delivery is taking longer than the date I was given.,Delivery & Logistics,Late delivery,Logistics,False
+My shipment should have arrived by now but it is delayed.,Delivery & Logistics,Late delivery,Logistics,False
+My parcel never arrived.,Delivery & Logistics,Missing parcel,Logistics,False
+I have not received the package that was supposed to arrive.,Delivery & Logistics,Missing parcel,Logistics,False
+My shipment appears to be missing.,Delivery & Logistics,Missing parcel,Logistics,False
+The package has disappeared and I cannot locate it.,Delivery & Logistics,Missing parcel,Logistics,False
+My order has not reached me at all.,Delivery & Logistics,Missing parcel,Logistics,False
+The tracking information does not show where my missing parcel is.,Delivery & Logistics,Missing parcel,Logistics,False
+My delivery is missing even though I was expecting it.,Delivery & Logistics,Missing parcel,Logistics,False
+I still have no package from my order.,Delivery & Logistics,Missing parcel,Logistics,False
+My parcel cannot be found and I have not received it.,Delivery & Logistics,Missing parcel,Logistics,False
+I want to cancel the order I placed earlier.,Orders & Checkout,Order cancellation,Order Operations,False
+Please cancel my current order.,Orders & Checkout,Order cancellation,Order Operations,False
+I no longer want this purchase and need it cancelled.,Orders & Checkout,Order cancellation,Order Operations,False
+Can you stop my order before it is processed?,Orders & Checkout,Order cancellation,Order Operations,False
+I need to cancel my recent purchase.,Orders & Checkout,Order cancellation,Order Operations,False
+Please cancel the order before it ships.,Orders & Checkout,Order cancellation,Order Operations,False
+I changed my mind and want my order cancelled.,Orders & Checkout,Order cancellation,Order Operations,False
+Could you remove my order from the processing queue?,Orders & Checkout,Order cancellation,Order Operations,False
+I do not want the order anymore and would like to cancel it.,Orders & Checkout,Order cancellation,Order Operations,False
+I need to change an item in my existing order.,Orders & Checkout,Order modification,Order Operations,False
+I want to modify the quantity on my order.,Orders & Checkout,Order modification,Order Operations,False
+I selected the wrong product and need to edit my order.,Orders & Checkout,Order modification,Order Operations,False
+Can I change my order before it is shipped?,Orders & Checkout,Order modification,Order Operations,False
+I need to update the details of my current order.,Orders & Checkout,Order modification,Order Operations,False
+Please change one of the products in my order.,Orders & Checkout,Order modification,Order Operations,False
+I entered the wrong quantity and need it corrected.,Orders & Checkout,Order modification,Order Operations,False
+I want to replace an item in my order before dispatch.,Orders & Checkout,Order modification,Order Operations,False
+Can you update my existing order for me?,Orders & Checkout,Order modification,Order Operations,False
+I cannot log in to my account.,Account & Security,Password/login issue,Account Security,False
+My password is not being accepted.,Account & Security,Password/login issue,Account Security,False
+I forgot my password and cannot access my account.,Account & Security,Password/login issue,Account Security,False
+The login page keeps rejecting my credentials.,Account & Security,Password/login issue,Account Security,False
+I am locked out because I cannot sign in.,Account & Security,Password/login issue,Account Security,False
+My account login is not working.,Account & Security,Password/login issue,Account Security,False
+I cannot access my account with my current password.,Account & Security,Password/login issue,Account Security,False
+The sign-in process keeps failing for me.,Account & Security,Password/login issue,Account Security,False
+I need help because I am unable to log into my account.,Account & Security,Password/login issue,Account Security,False
+My payment was declined when I tried to order.,Payments & Billing,Payment declined,Payments & Finance,False
+The card payment keeps being rejected.,Payments & Billing,Payment declined,Payments & Finance,False
+My transaction was declined.,Payments & Billing,Payment declined,Payments & Finance,False
+I cannot complete my purchase because the payment is declined.,Payments & Billing,Payment declined,Payments & Finance,False
+The checkout says my payment was refused.,Payments & Billing,Payment declined,Payments & Finance,False
+My card will not go through for this order.,Payments & Billing,Payment declined,Payments & Finance,False
+The payment failed even though I tried several times.,Payments & Billing,Payment declined,Payments & Finance,False
+My purchase cannot be completed because the transaction is being declined.,Payments & Billing,Payment declined,Payments & Finance,False
+The system keeps rejecting my payment method.,Payments & Billing,Payment declined,Payments & Finance,False
+I want a copy of the personal data you hold about me.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+Please tell me what personal information you have stored.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+I would like access to my customer data.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+Please provide the personal information linked to my account.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+I want to see the data your company has about me.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+Can I request a copy of my stored personal information?,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+I need access to the personal records associated with my account.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+Please provide the personal data you have collected about me.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+I would like to obtain my customer information from your records.,Privacy & Data,Privacy/data request,Privacy & Compliance,False
+The discount code did not apply to my order.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+My promotional offer was not applied at checkout.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+The advertised discount is missing from my bill.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+I entered a valid promo code but received no discount.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+My coupon was accepted but the price did not change.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+The promotion shown on the website was not applied to my purchase.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+My order did not receive the promotional discount.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+The sale price was not reflected when I checked out.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+The coupon discount is missing from the final total.,Promotions & Pricing,Promotion not applied,Payments & Finance,False
+My approved refund has not reached me yet.,Returns & Refunds,Refund delayed,Payments & Finance,False
+I am still waiting for the refund from my cancelled order.,Returns & Refunds,Refund delayed,Payments & Finance,False
+The refund was promised but I have not received it.,Returns & Refunds,Refund delayed,Payments & Finance,False
+My refund is taking longer than expected.,Returns & Refunds,Refund delayed,Payments & Finance,False
+The refund has not appeared in my account yet.,Returns & Refunds,Refund delayed,Payments & Finance,False
+I was told my refund was processed but the money is still missing.,Returns & Refunds,Refund delayed,Payments & Finance,False
+My returned order was approved for a refund but I am still waiting.,Returns & Refunds,Refund delayed,Payments & Finance,False
+The expected refund date has passed and I have not received the money.,Returns & Refunds,Refund delayed,Payments & Finance,False
+My refund is overdue even though it was already approved.,Returns & Refunds,Refund delayed,Payments & Finance,False
+I want to return an item I purchased.,Returns & Refunds,Return request,Returns & Quality,False
+Please help me start a return.,Returns & Refunds,Return request,Returns & Quality,False
+I need to send this product back.,Returns & Refunds,Return request,Returns & Quality,False
+How can I return the item I received?,Returns & Refunds,Return request,Returns & Quality,False
+I would like to request a return for my purchase.,Returns & Refunds,Return request,Returns & Quality,False
+Please tell me how to send my order back.,Returns & Refunds,Return request,Returns & Quality,False
+I need to return a product from my recent order.,Returns & Refunds,Return request,Returns & Quality,False
+Can you help me arrange a return?,Returns & Refunds,Return request,Returns & Quality,False
+I no longer need this item and would like to return it.,Returns & Refunds,Return request,Returns & Quality,False
+The website shows an error when I open my account.,Technical Support,Website/app error,Technical Support,False
+The mobile app crashes when I view my orders.,Technical Support,Website/app error,Technical Support,False
+I cannot use the website because a page keeps failing.,Technical Support,Website/app error,Technical Support,False
+The app displays an error whenever I try to continue.,Technical Support,Website/app error,Technical Support,False
+The website stops responding when I open the order page.,Technical Support,Website/app error,Technical Support,False
+My mobile application closes unexpectedly.,Technical Support,Website/app error,Technical Support,False
+A technical error prevents me from using the website.,Technical Support,Website/app error,Technical Support,False
+The app is not working when I try to access my account.,Technical Support,Website/app error,Technical Support,False
+I keep getting an error message on the website.,Technical Support,Website/app error,Technical Support,False
+My order is being sent to the wrong address.,Delivery & Logistics,Wrong delivery address,Logistics,False
+I entered the wrong delivery address.,Delivery & Logistics,Wrong delivery address,Logistics,False
+The courier has the incorrect address for my parcel.,Delivery & Logistics,Wrong delivery address,Logistics,False
+The delivery address on my order is incorrect.,Delivery & Logistics,Wrong delivery address,Logistics,False
+My package is going to an address I did not intend to use.,Delivery & Logistics,Wrong delivery address,Logistics,False
+I need to correct the address associated with my shipment.,Delivery & Logistics,Wrong delivery address,Logistics,False
+The shipping label has the wrong address.,Delivery & Logistics,Wrong delivery address,Logistics,False
+My parcel is being delivered to an incorrect location.,Delivery & Logistics,Wrong delivery address,Logistics,False
+I noticed that my order has an incorrect delivery address.,Delivery & Logistics,Wrong delivery address,Logistics,False
+I received a different product from the one I ordered.,Product Quality,Wrong item received,Returns & Quality,False
+The item in my parcel is not what I purchased.,Product Quality,Wrong item received,Returns & Quality,False
+My order contains the wrong item.,Product Quality,Wrong item received,Returns & Quality,False
+I was sent the wrong product.,Product Quality,Wrong item received,Returns & Quality,False
+The product delivered does not match my order.,Product Quality,Wrong item received,Returns & Quality,False
+I received another customer's item instead of mine.,Product Quality,Wrong item received,Returns & Quality,False
+The contents of my package are different from what I ordered.,Product Quality,Wrong item received,Returns & Quality,False
+The shipment contains a product I did not request.,Product Quality,Wrong item received,Returns & Quality,False
+The wrong model was delivered instead of the one I purchased.,Product Quality,Wrong item received,Returns & Quality,False
+The refund I received is less than the amount I was owed.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+My refund amount is incorrect.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+I received only part of the refund.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+The refunded amount does not match what I expected.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+My refund was calculated for the wrong amount.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+The money returned to me is less than the approved refund.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+I received a partial refund when I was expecting the full amount.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+The refund credited to my account is not the correct value.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+The refund total does not match the amount that should have been returned.,Returns & Refunds,Wrong refund amount,Payments & Finance,False
+My personal records may have been exposed during an unauthorized access event.,Privacy & Data,Data/security incident,Privacy & Compliance,True
+A stranger appears to have taken control of my customer account.,Account & Security,Account takeover concern,Account Security,True

@@ -1,0 +1,23 @@
+Policy_ID,Policy_Name,Policy_Rule,Owner_Department,Status
+POL01,Order Cancellation SOP,"Orders may be cancelled before the order enters packed status; after packing, cancellation becomes a return request.",DEP02,Active
+POL02,Order Modification SOP,Address or item changes are allowed only before packing and only after identity verification.,DEP02,Active
+POL03,Checkout Failure SOP,"For failed checkout, preserve the cart and retry only after confirming no completed payment exists.",DEP07,Active
+POL04,Payment Verification SOP,Finance verifies payment status using the transaction reference; agents must not request full card numbers or CVVs.,DEP03,Active
+POL05,Duplicate Charge SOP,Verified duplicate captures are refunded to the original payment method within 5 business days.,DEP03,Active
+POL06,Invoice & Tax SOP,Invoices are issued against completed orders; invoice corrections require the order ID and billing details.,DEP03,Active
+POL07,Delivery SLA SOP,Standard delivery target is 3-5 business days; delays beyond 2 business days trigger logistics review.,DEP04,Active
+POL08,Address Correction SOP,"Address correction is permitted before courier handoff; after handoff, Logistics must contact the courier.",DEP04,Active
+POL09,Damaged Parcel SOP,"Customer should provide parcel/product photos within 7 days; Quality decides replacement, return or rejection.",DEP05,Active
+POL10,Missing Parcel SOP,A parcel marked delivered but not received requires delivery verification before replacement/refund.,DEP04,Active
+POL11,Return Eligibility SOP,Eligible unopened or defective items may be returned within 14 calendar days unless excluded by category rules.,DEP05,Active
+POL12,Refund SLA SOP,Approved refunds are initiated within 5 business days; bank posting time may take additional time.,DEP03,Active
+POL13,Refund Exception SOP,"Refund amount disputes require order, refund reference and payment record comparison.",DEP03,Active
+POL14,Password Reset SOP,Password reset requires verified email/OTP; agents must not disclose existing passwords.,DEP06,Active
+POL15,Account Takeover SOP,"Suspected takeover requires session revocation, credential reset and security review.",DEP06,Active
+POL16,Defective Product SOP,"Defects reported within the return window receive quality assessment and, where eligible, replacement or refund.",DEP05,Active
+POL17,Promotion SOP,"Promotions apply only when eligibility, dates and qualifying products/thresholds are satisfied.",DEP03,Active
+POL18,Technical Incident SOP,"Repeatable site/app failures are logged with steps, timestamp and device/browser details when available.",DEP07,Active
+POL19,Customer Conduct & Service SOP,"Agents must remain professional; threats, abuse or harassment are documented and escalated without retaliation.",DEP01,Active
+POL20,Privacy & Data Incident SOP,Privacy requests and suspected personal-data exposure are routed to Privacy & Compliance; sensitive data is minimized.,DEP08,Active
+POL21,High-Value Order Review SOP,"Orders above PKR 150,000 require enhanced verification before exceptional refunds or replacements.",DEP03,Active
+POL22,Escalation & Exception SOP,"Mandatory escalation conditions override normal handling where safety, security, legal, privacy, repeated failure or high-value exposure is involved.",DEP08,Active

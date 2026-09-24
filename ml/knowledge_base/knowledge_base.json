@@ -1,0 +1,29 @@
+{
+  "document_count": 3,
+  "documents": [
+    {
+      "filename": "refund_policy.txt",
+      "file_path": "A:\\Abdul Rafay\\My_Projects\\APTECH COMP PROJECTS\\SupportNova\\ml\\kb_documents\\policies\\refund_policy.txt",
+      "extension": ".txt",
+      "text": "NovaMart Refund Policy\n\nCustomers may request a refund for eligible purchases.\n\nRefund requests must be verified against the relevant order\nand payment records before approval.\n\nApproved refunds are processed according to the applicable\npayment-processing procedure.\n\nSupport agents must not promise a refund before verification\nand approval requirements have been satisfied.",
+      "character_count": 375,
+      "word_count": 50
+    },
+    {
+      "filename": "routing_rules.txt",
+      "file_path": "A:\\Abdul Rafay\\My_Projects\\APTECH COMP PROJECTS\\SupportNova\\ml\\kb_documents\\rules\\routing_rules.txt",
+      "extension": ".txt",
+      "text": "NovaMart Routing Rules\n\nPayments and billing complaints should be handled by\nPayments & Finance.\n\nDelivery complaints should be handled by Logistics.\n\nPrivacy and account-data complaints should be handled by\nPrivacy & Compliance.\n\nTechnical product or website issues should be handled by\nTechnical Support.",
+      "character_count": 306,
+      "word_count": 43
+    },
+    {
+      "filename": "complaint_handling.txt",
+      "file_path": "A:\\Abdul Rafay\\My_Projects\\APTECH COMP PROJECTS\\SupportNova\\ml\\kb_documents\\sops\\complaint_handling.txt",
+      "extension": ".txt",
+      "text": "NovaMart Complaint Handling SOP\n\nSupport agents must acknowledge customer complaints.\n\nAgents must collect required information before final\nresolution.\n\nIf evidence conflicts with the available records, the case\nmust be escalated according to the applicable escalation\nrules.\n\nCustomer-facing responses must not contain unsupported\ndates, amounts, approvals, or guarantees.",
+      "character_count": 374,
+      "word_count": 47
+    }
+  ]
+}

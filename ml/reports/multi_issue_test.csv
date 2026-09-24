@@ -1,0 +1,26 @@
+Complaint_ID,Category,Subcategory,Primary_Department,Supporting_Departments,ESC16,Escalation,Priority,Passed
+CMP-0301,Account & Security,Account takeover concern,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0302,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0303,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0304,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0305,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0306,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0307,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0308,Account & Security,Account takeover concern,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0309,Account & Security,Account takeover concern,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0310,Orders & Checkout,Order modification,Customer Support,Logistics,True,True,High,True
+CMP-0311,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0312,Account & Security,Account takeover concern,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0313,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0314,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0315,Account & Security,Account takeover concern,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0316,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0317,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0318,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0319,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0320,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0321,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0322,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0323,Account & Security,Account takeover concern,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0324,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True
+CMP-0325,Product Quality,Wrong item received,Customer Support,"Order Operations, Logistics",True,True,High,True

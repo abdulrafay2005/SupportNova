@@ -1,0 +1,501 @@
+row,category_expected,category_predicted,category_match,subcategory_expected,subcategory_predicted,subcategory_match,department_expected,department_predicted,department_match
+1,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+2,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+3,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+4,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+5,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+6,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+7,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+8,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+9,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+10,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+11,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+12,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+13,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+14,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+15,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+16,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+17,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+18,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+19,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+20,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+21,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+22,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+23,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+24,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+25,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+26,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+27,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+28,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+29,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+30,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+31,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+32,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+33,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+34,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+35,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+36,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+37,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+38,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+39,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+40,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+41,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+42,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+43,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+44,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+45,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+46,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+47,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+48,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+49,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+50,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+51,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+52,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+53,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+54,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+55,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+56,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+57,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+58,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+59,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+60,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+61,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+62,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+63,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+64,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+65,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+66,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+67,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+68,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+69,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+70,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+71,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+72,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+73,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+74,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+75,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+76,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+77,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+78,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+79,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+80,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+81,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+82,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+83,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+84,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+85,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+86,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+87,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+88,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+89,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+90,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+91,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+92,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+93,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+94,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+95,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+96,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+97,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+98,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+99,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+100,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+101,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+102,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+103,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+104,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+105,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+106,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+107,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+108,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+109,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+110,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+111,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+112,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+113,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+114,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+115,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+116,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+117,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+118,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+119,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+120,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+121,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+122,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+123,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+124,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+125,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+126,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+127,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+128,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+129,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+130,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+131,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+132,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+133,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+134,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+135,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+136,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+137,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+138,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+139,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+140,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+141,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+142,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+143,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+144,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+145,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+146,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+147,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+148,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+149,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+150,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+151,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+152,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+153,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+154,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+155,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+156,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+157,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+158,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+159,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+160,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+161,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+162,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+163,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+164,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+165,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+166,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+167,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+168,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+169,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+170,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+171,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+172,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+173,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+174,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+175,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+176,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+177,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+178,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+179,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+180,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+181,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+182,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+183,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+184,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+185,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+186,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+187,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+188,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+189,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+190,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+191,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+192,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+193,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+194,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+195,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+196,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+197,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+198,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+199,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+200,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+201,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+202,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+203,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+204,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+205,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+206,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+207,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+208,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+209,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+210,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+211,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+212,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+213,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+214,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+215,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+216,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+217,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+218,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+219,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+220,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+221,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+222,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+223,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+224,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+225,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+226,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+227,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+228,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+229,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+230,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+231,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+232,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+233,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+234,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+235,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+236,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+237,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+238,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+239,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+240,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+241,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+242,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+243,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+244,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+245,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+246,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+247,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+248,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+249,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+250,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+251,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+252,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+253,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+254,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+255,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+256,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+257,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+258,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+259,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+260,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+261,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+262,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+263,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+264,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+265,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+266,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+267,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+268,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+269,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+270,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+271,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+272,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+273,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+274,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+275,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+276,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+277,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+278,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+279,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+280,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+281,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+282,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+283,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+284,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+285,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+286,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+287,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+288,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+289,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+290,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+291,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+292,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+293,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+294,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+295,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+296,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+297,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+298,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+299,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+300,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+301,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+302,Product Quality,Product Quality,True,Defective product,Wrong item received,False,Returns & Quality,Returns & Quality,True
+303,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+304,Promotions & Pricing,Product Quality,False,Promotion not applied,Wrong item received,False,Customer Support,Returns & Quality,False
+305,Technical Support,Product Quality,False,Website/app error,Wrong item received,False,Technical Support,Returns & Quality,False
+306,Customer Service,Product Quality,False,Agent/service complaint,Wrong item received,False,Customer Support,Returns & Quality,False
+307,Privacy & Data,Product Quality,False,Privacy/data request,Wrong item received,False,Privacy & Compliance,Returns & Quality,False
+308,Privacy & Data,Account & Security,False,Data/security incident,Account takeover concern,False,Privacy & Compliance,Account Security,False
+309,Orders & Checkout,Account & Security,False,Order cancellation,Account takeover concern,False,Order Operations,Account Security,False
+310,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+311,Orders & Checkout,Product Quality,False,Checkout failure,Wrong item received,False,Technical Support,Returns & Quality,False
+312,Payments & Billing,Account & Security,False,Payment declined,Account takeover concern,False,Payments & Finance,Account Security,False
+313,Payments & Billing,Product Quality,False,Duplicate charge,Wrong item received,False,Payments & Finance,Returns & Quality,False
+314,Payments & Billing,Product Quality,False,Invoice/tax issue,Wrong item received,False,Payments & Finance,Returns & Quality,False
+315,Delivery & Logistics,Account & Security,False,Late delivery,Account takeover concern,False,Logistics,Account Security,False
+316,Delivery & Logistics,Product Quality,False,Wrong delivery address,Wrong item received,False,Logistics,Returns & Quality,False
+317,Delivery & Logistics,Product Quality,False,Damaged parcel,Wrong item received,False,Returns & Quality,Returns & Quality,True
+318,Delivery & Logistics,Product Quality,False,Missing parcel,Wrong item received,False,Logistics,Returns & Quality,False
+319,Returns & Refunds,Product Quality,False,Return request,Wrong item received,False,Returns & Quality,Returns & Quality,True
+320,Returns & Refunds,Product Quality,False,Refund delayed,Wrong item received,False,Payments & Finance,Returns & Quality,False
+321,Returns & Refunds,Product Quality,False,Wrong refund amount,Wrong item received,False,Payments & Finance,Returns & Quality,False
+322,Account & Security,Product Quality,False,Password/login issue,Wrong item received,False,Account Security,Returns & Quality,False
+323,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+324,Product Quality,Product Quality,True,Defective product,Wrong item received,False,Returns & Quality,Returns & Quality,True
+325,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+326,Promotions & Pricing,Delivery & Logistics,False,Promotion not applied,Missing parcel,False,Customer Support,Logistics,False
+327,Technical Support,Delivery & Logistics,False,Website/app error,Missing parcel,False,Technical Support,Logistics,False
+328,Customer Service,Delivery & Logistics,False,Agent/service complaint,Missing parcel,False,Customer Support,Logistics,False
+329,Privacy & Data,Delivery & Logistics,False,Privacy/data request,Missing parcel,False,Privacy & Compliance,Logistics,False
+330,Privacy & Data,Delivery & Logistics,False,Data/security incident,Missing parcel,False,Privacy & Compliance,Logistics,False
+331,Orders & Checkout,Delivery & Logistics,False,Order cancellation,Missing parcel,False,Order Operations,Logistics,False
+332,Orders & Checkout,Delivery & Logistics,False,Order modification,Missing parcel,False,Order Operations,Logistics,False
+333,Orders & Checkout,Delivery & Logistics,False,Checkout failure,Missing parcel,False,Technical Support,Logistics,False
+334,Payments & Billing,Delivery & Logistics,False,Payment declined,Missing parcel,False,Payments & Finance,Logistics,False
+335,Payments & Billing,Delivery & Logistics,False,Duplicate charge,Missing parcel,False,Payments & Finance,Logistics,False
+336,Payments & Billing,Delivery & Logistics,False,Invoice/tax issue,Missing parcel,False,Payments & Finance,Logistics,False
+337,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Missing parcel,False,Logistics,Logistics,True
+338,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Missing parcel,False,Logistics,Logistics,True
+339,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Missing parcel,False,Returns & Quality,Logistics,False
+340,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+341,Returns & Refunds,Delivery & Logistics,False,Return request,Missing parcel,False,Returns & Quality,Logistics,False
+342,Returns & Refunds,Delivery & Logistics,False,Refund delayed,Missing parcel,False,Payments & Finance,Logistics,False
+343,Returns & Refunds,Delivery & Logistics,False,Wrong refund amount,Missing parcel,False,Payments & Finance,Logistics,False
+344,Account & Security,Delivery & Logistics,False,Password/login issue,Missing parcel,False,Account Security,Logistics,False
+345,Account & Security,Delivery & Logistics,False,Account takeover concern,Missing parcel,False,Account Security,Logistics,False
+346,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+347,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+348,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+349,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+350,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+351,Privacy & Data,Product Quality,False,Privacy/data request,Wrong item received,False,Privacy & Compliance,Returns & Quality,False
+352,Privacy & Data,Product Quality,False,Data/security incident,Wrong item received,False,Privacy & Compliance,Returns & Quality,False
+353,Orders & Checkout,Product Quality,False,Order cancellation,Wrong item received,False,Order Operations,Returns & Quality,False
+354,Orders & Checkout,Product Quality,False,Order modification,Wrong item received,False,Order Operations,Returns & Quality,False
+355,Orders & Checkout,Product Quality,False,Checkout failure,Wrong item received,False,Technical Support,Returns & Quality,False
+356,Payments & Billing,Product Quality,False,Payment declined,Wrong item received,False,Payments & Finance,Returns & Quality,False
+357,Payments & Billing,Product Quality,False,Duplicate charge,Wrong item received,False,Payments & Finance,Returns & Quality,False
+358,Payments & Billing,Product Quality,False,Invoice/tax issue,Wrong item received,False,Payments & Finance,Returns & Quality,False
+359,Delivery & Logistics,Product Quality,False,Late delivery,Wrong item received,False,Logistics,Returns & Quality,False
+360,Delivery & Logistics,Product Quality,False,Wrong delivery address,Wrong item received,False,Logistics,Returns & Quality,False
+361,Delivery & Logistics,Product Quality,False,Damaged parcel,Wrong item received,False,Returns & Quality,Returns & Quality,True
+362,Delivery & Logistics,Product Quality,False,Missing parcel,Wrong item received,False,Logistics,Returns & Quality,False
+363,Returns & Refunds,Product Quality,False,Return request,Wrong item received,False,Returns & Quality,Returns & Quality,True
+364,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+365,Returns & Refunds,Product Quality,False,Wrong refund amount,Wrong item received,False,Payments & Finance,Returns & Quality,False
+366,Account & Security,Product Quality,False,Password/login issue,Wrong item received,False,Account Security,Returns & Quality,False
+367,Account & Security,Product Quality,False,Account takeover concern,Wrong item received,False,Account Security,Returns & Quality,False
+368,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+369,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+370,Promotions & Pricing,Product Quality,False,Promotion not applied,Wrong item received,False,Customer Support,Returns & Quality,False
+371,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+372,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+373,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+374,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+375,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+376,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+377,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+378,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+379,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+380,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+381,Delivery & Logistics,Payments & Billing,False,Late delivery,Duplicate charge,False,Logistics,Payments & Finance,False
+382,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+383,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+384,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+385,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+386,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+387,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+388,Account & Security,Orders & Checkout,False,Password/login issue,Order modification,False,Account Security,Order Operations,False
+389,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+390,Product Quality,Payments & Billing,False,Defective product,Invoice/tax issue,False,Returns & Quality,Payments & Finance,False
+391,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+392,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+393,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+394,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+395,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+396,Privacy & Data,Payments & Billing,False,Data/security incident,Duplicate charge,False,Privacy & Compliance,Payments & Finance,False
+397,Orders & Checkout,Promotions & Pricing,False,Order cancellation,Promotion not applied,False,Order Operations,Customer Support,False
+398,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+399,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+400,Payments & Billing,Payments & Billing,True,Payment declined,Invoice/tax issue,False,Payments & Finance,Payments & Finance,True
+401,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+402,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+403,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+404,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+405,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+406,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+407,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+408,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+409,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+410,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+411,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+412,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+413,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+414,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+415,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+416,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+417,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+418,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+419,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+420,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+421,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+422,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+423,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+424,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+425,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+426,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+427,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+428,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+429,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+430,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+431,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+432,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+433,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+434,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+435,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+436,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+437,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+438,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+439,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+440,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+441,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+442,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+443,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+444,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+445,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+446,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+447,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+448,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+449,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+450,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+451,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+452,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+453,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+454,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+455,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+456,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+457,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+458,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+459,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+460,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+461,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+462,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+463,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+464,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+465,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+466,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+467,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+468,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+469,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+470,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+471,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+472,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+473,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+474,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+475,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+476,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+477,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+478,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True
+479,Product Quality,Product Quality,True,Wrong item received,Wrong item received,True,Returns & Quality,Returns & Quality,True
+480,Promotions & Pricing,Promotions & Pricing,True,Promotion not applied,Promotion not applied,True,Customer Support,Customer Support,True
+481,Technical Support,Technical Support,True,Website/app error,Website/app error,True,Technical Support,Technical Support,True
+482,Customer Service,Customer Service,True,Agent/service complaint,Agent/service complaint,True,Customer Support,Customer Support,True
+483,Privacy & Data,Privacy & Data,True,Privacy/data request,Privacy/data request,True,Privacy & Compliance,Privacy & Compliance,True
+484,Privacy & Data,Privacy & Data,True,Data/security incident,Data/security incident,True,Privacy & Compliance,Privacy & Compliance,True
+485,Orders & Checkout,Orders & Checkout,True,Order cancellation,Order cancellation,True,Order Operations,Order Operations,True
+486,Orders & Checkout,Orders & Checkout,True,Order modification,Order modification,True,Order Operations,Order Operations,True
+487,Orders & Checkout,Orders & Checkout,True,Checkout failure,Checkout failure,True,Technical Support,Technical Support,True
+488,Payments & Billing,Payments & Billing,True,Payment declined,Payment declined,True,Payments & Finance,Payments & Finance,True
+489,Payments & Billing,Payments & Billing,True,Duplicate charge,Duplicate charge,True,Payments & Finance,Payments & Finance,True
+490,Payments & Billing,Payments & Billing,True,Invoice/tax issue,Invoice/tax issue,True,Payments & Finance,Payments & Finance,True
+491,Delivery & Logistics,Delivery & Logistics,True,Late delivery,Late delivery,True,Logistics,Logistics,True
+492,Delivery & Logistics,Delivery & Logistics,True,Wrong delivery address,Wrong delivery address,True,Logistics,Logistics,True
+493,Delivery & Logistics,Delivery & Logistics,True,Damaged parcel,Damaged parcel,True,Returns & Quality,Returns & Quality,True
+494,Delivery & Logistics,Delivery & Logistics,True,Missing parcel,Missing parcel,True,Logistics,Logistics,True
+495,Returns & Refunds,Returns & Refunds,True,Return request,Return request,True,Returns & Quality,Returns & Quality,True
+496,Returns & Refunds,Returns & Refunds,True,Refund delayed,Refund delayed,True,Payments & Finance,Payments & Finance,True
+497,Returns & Refunds,Returns & Refunds,True,Wrong refund amount,Wrong refund amount,True,Payments & Finance,Payments & Finance,True
+498,Account & Security,Account & Security,True,Password/login issue,Password/login issue,True,Account Security,Account Security,True
+499,Account & Security,Account & Security,True,Account takeover concern,Account takeover concern,True,Account Security,Account Security,True
+500,Product Quality,Product Quality,True,Defective product,Defective product,True,Returns & Quality,Returns & Quality,True

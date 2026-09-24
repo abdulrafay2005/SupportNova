@@ -1,0 +1,9 @@
+Department_ID,Department_Name,Responsibility
+DEP01,Customer Support,Frontline complaint intake and customer communication
+DEP02,Order Operations,"Order changes, cancellation, fulfillment coordination"
+DEP03,Payments & Finance,"Charges, invoices, payment verification, refunds"
+DEP04,Logistics,"Courier coordination, delivery exceptions, parcel tracing"
+DEP05,Returns & Quality,"Returns, damaged/defective goods, quality review"
+DEP06,Account Security,"Login, account takeover, authentication and fraud review"
+DEP07,Technical Support,Website/app defects and technical troubleshooting
+DEP08,Privacy & Compliance,"Privacy requests, data incidents and compliance review"

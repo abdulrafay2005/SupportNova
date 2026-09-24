@@ -1,0 +1,55 @@
+{
+  "complaint": {
+    "id": "",
+    "title": "",
+    "description": ""
+  },
+
+  "classification": {
+    "category": "",
+    "subcategory": "",
+    "department": ""
+  },
+
+  "sentiment": {
+    "label": "",
+    "emotion": ""
+  },
+
+  "entities": {
+    "order_id": "",
+    "transaction_id": "",
+    "product": "",
+    "amount": "",
+    "date": ""
+  },
+
+  "policies": [],
+
+  "resolution": {
+    "steps": [],
+    "explanation": ""
+  },
+
+  "escalation": {
+    "required": false,
+    "level": "",
+    "reason": ""
+  },
+
+  "routing": {
+    "primary_department": "",
+    "supporting_departments": []
+  },
+
+  "customer_response": "",
+
+  "follow_up": {
+    "required": false,
+    "message": ""
+  },
+
+  "agent_guidance": "",
+
+  "clarification_questions": []
+}

@@ -1,0 +1,23 @@
+﻿Subcategory,Policy_ID
+Order cancellation,POL01
+Order modification,POL02
+Checkout failure,POL03
+Payment declined,POL04
+Duplicate charge,POL05
+Invoice/tax issue,POL06
+Late delivery,POL07
+Wrong delivery address,POL08
+Damaged parcel,POL09
+Missing parcel,POL10
+Return request,POL11
+Refund delayed,POL12
+Wrong refund amount,POL13
+Password/login issue,POL14
+Account takeover concern,POL15
+Defective product,POL16
+Wrong item received,POL16
+Promotion not applied,POL17
+Website/app error,POL18
+Agent/service complaint,POL19
+Privacy/data request,POL20
+Data/security incident,POL20

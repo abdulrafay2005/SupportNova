@@ -1,0 +1,12 @@
+NovaMart Routing Rules
+
+Payments and billing complaints should be handled by
+Payments & Finance.
+
+Delivery complaints should be handled by Logistics.
+
+Privacy and account-data complaints should be handled by
+Privacy & Compliance.
+
+Technical product or website issues should be handled by
+Technical Support.
