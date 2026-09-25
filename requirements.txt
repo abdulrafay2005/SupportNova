@@ -1,0 +1,21 @@
+fastapi
+uvicorn[standard]
+pymongo
+pydantic
+python-dotenv
+openai
+pandas
+numpy
+scikit-learn
+jsonschema
+python-jose[cryptography]
+passlib[bcrypt]
+email-validator
+bcrypt==4.0.1
+
+# python -c "import secrets; print(secrets.token_urlsafe(32))"
+# python -m venv .venv
+# .\.venv\Scripts\Activate.ps1
+# pip install -r requirements.txt
+# pip list
+#uvicorn api.main:app --reload

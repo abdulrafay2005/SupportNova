@@ -15,3 +15,4 @@ db = client["supportnova"]
 
 complaints_collection = db["complaints"]
 analyses_collection = db["analyses"]
+users_collection = db["users"]

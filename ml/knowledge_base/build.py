@@ -1,8 +1,8 @@
 """
-SupportNova Knowledge Base Builder.
+SupportNova Help Center Builder.
 
 Processes documents, validates them, and stores only
-valid documents in the local knowledge base.
+valid documents in the local Help Center.
 """
 
 from pathlib import Path
@@ -34,13 +34,13 @@ DOCUMENT_DIR = ML_DIR / "kb_documents"
 
 
 # ------------------------------------------------------------------
-# Knowledge base build
+# Help Center build
 # ------------------------------------------------------------------
 
 def build_knowledge_base():
 
     print("=" * 70)
-    print("SUPPORTNOVA KNOWLEDGE BASE BUILDER")
+    print("SUPPORTNOVA Help Center BUILDER")
     print("=" * 70)
 
     print()
@@ -92,13 +92,13 @@ def build_knowledge_base():
     print("Valid documents:", len(valid_documents))
 
     print(
-        "Knowledge base saved to:",
+        "Help Center saved to:",
         storage_path
     )
 
     print()
     print("=" * 70)
-    print("KNOWLEDGE BASE BUILD COMPLETE")
+    print("Help Center BUILD COMPLETE")
     print("=" * 70)
 
     return valid_documents

@@ -1,5 +1,5 @@
 """
-SupportNova Knowledge Base Storage.
+SupportNova Help Center Storage.
 
 Stores processed and validated knowledge-base documents
 in a local JSON file and provides simple keyword search.
@@ -68,7 +68,7 @@ def load_knowledge_base(
     storage_path=DEFAULT_STORAGE_PATH
 ):
     """
-    Load the knowledge base from JSON.
+    Load the Help Center from JSON.
 
     Returns the complete stored knowledge-base object.
     """
@@ -115,7 +115,7 @@ def search_knowledge_base(
     query
 ):
     """
-    Search the knowledge base using keyword matching.
+    Search the Help Center using keyword matching.
 
     Returns documents ranked by the number of matching
     query terms.

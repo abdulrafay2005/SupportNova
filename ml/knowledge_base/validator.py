@@ -1,8 +1,8 @@
 """
-SupportNova Knowledge Base Validator.
+SupportNova Help Center Validator.
 
 Validates extracted organizational knowledge before
-it is accepted into the application knowledge base.
+it is accepted into the application Help Center.
 """
 
 

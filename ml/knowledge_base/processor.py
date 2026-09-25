@@ -1,5 +1,5 @@
 """
-SupportNova Knowledge Base Document Processor.
+SupportNova Help Center Document Processor.
 
 Supports:
 - TXT
@@ -7,7 +7,7 @@ Supports:
 - PDF
 
 Documents are extracted into a normalized structure that can
-later be validated and stored in the SupportNova knowledge base.
+later be validated and stored in the SupportNova Help Center.
 """
 
 from pathlib import Path
