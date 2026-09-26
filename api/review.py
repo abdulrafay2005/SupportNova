@@ -41,18 +41,43 @@ def _get_complaint(complaint_id: str):
 
 
 def _require_pending_review(complaint: dict):
+    """
+    Validate that the complaint is currently waiting for reviewer action.
+
+    Canonical state:
+        manual_review_required = True
+        status = "Manual Review"
+        review_status = "Pending"
+
+    Legacy/manual-test state also accepted:
+        manual_review_required = True
+        status = "Manual Review"
+        review_status = None
+
+    The latter is supported so manually created/older review records
+    are not incorrectly hidden from the reviewer workflow.
+    """
+
     if complaint.get("manual_review_required") is not True:
         raise HTTPException(
             status_code=400,
             detail="This complaint does not require manual review"
         )
 
-    if complaint.get("review_status") != "Pending":
+    status = complaint.get("status")
+    review_status = complaint.get("review_status")
+
+    if status != "Manual Review":
+        raise HTTPException(
+            status_code=400,
+            detail="This complaint is not currently in Manual Review"
+        )
+
+    if review_status not in {"Pending", None}:
         raise HTTPException(
             status_code=400,
             detail="This complaint has already been reviewed"
         )
-
 
 def _get_analysis(complaint_id: str):
     analysis_document = analyses_collection.find_one({
@@ -267,11 +292,10 @@ def approve_review(
         complaint_object_id=complaint_object_id,
         reviewer=reviewer,
         action="Approve",
-        next_status="Analyzed",
+        next_status="Assigned",
         comment=comment,
         original_analysis=original_analysis
     )
-
 
 # ============================================================
 # MODIFY

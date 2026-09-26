@@ -1517,26 +1517,69 @@ def get_review_queue(
         require_roles("Reviewer")
     )
 ):
+    """
+    Return complaints that are currently waiting for reviewer action.
+
+    Canonical review state:
+        manual_review_required = True
+        status = "Manual Review"
+        review_status = "Pending"
+
+    Also accepts the legacy/manual-test state where review_status
+    is missing/null but the complaint is explicitly in Manual Review.
+    """
+
+    query = {
+        "manual_review_required": True,
+        "status": "Manual Review",
+        "$or": [
+            {
+                "review_status": "Pending"
+            },
+            {
+                "review_status": None
+            }
+        ]
+    }
+
     complaints = []
 
-    for complaint in complaints_collection.find({
-        "manual_review_required": True,
-        "review_status": "Pending"
-    }).sort(
+    for complaint in complaints_collection.find(query).sort(
         "updated_at",
         -1
     ):
         complaints.append({
             "id": str(complaint["_id"]),
 
-            "title": complaint["title"],
-            "description": complaint["description"],
+            "title": complaint.get(
+                "title",
+                ""
+            ),
 
-            "order_id": complaint.get("order_id"),
-            "transaction_id": complaint.get("transaction_id"),
-            "product": complaint.get("product"),
-            "amount": complaint.get("amount"),
-            "date": complaint.get("date"),
+            "description": complaint.get(
+                "description",
+                ""
+            ),
+
+            "order_id": complaint.get(
+                "order_id"
+            ),
+
+            "transaction_id": complaint.get(
+                "transaction_id"
+            ),
+
+            "product": complaint.get(
+                "product"
+            ),
+
+            "amount": complaint.get(
+                "amount"
+            ),
+
+            "date": complaint.get(
+                "date"
+            ),
 
             "status": complaint.get(
                 "status",
@@ -1556,8 +1599,9 @@ def get_review_queue(
                 False
             ),
 
-            "review_status": complaint.get(
-                "review_status"
+            "review_status": (
+                complaint.get("review_status")
+                or "Pending"
             ),
 
             "reviewer_id": complaint.get(

@@ -134,10 +134,10 @@ setCreatedId(created.id);
             />
             <Input label="Product / service" value={productService} onChange={(e) => setProductService(e.target.value)} placeholder="Optional" />
             <Input label="Order / reference number" value={reference} onChange={(e) => setReference(e.target.value)} hint="Optional, but speeds up investigation." placeholder="ORD-88421" />
-            <div className="grid gap-3 sm:grid-cols-2">
+            {/* <div className="grid gap-3 sm:grid-cols-2">
               <Select label="Customer type" options={TYPES} value={customerType} onChange={(e) => setCustomerType(e.target.value)} />
               <Select label="Preferred contact channel" options={CHANNELS} value={channel} onChange={(e) => setChannel(e.target.value)} />
-            </div>
+            </div> */}
             <Input label="Previous complaint reference" value={previousId} onChange={(e) => setPreviousId(e.target.value)} placeholder="SN-000124" hint="If this relates to an earlier complaint." />
             <div>
               <span className="mb-1.5 block text-[13px] font-medium text-ink-secondary">Supporting information</span>
