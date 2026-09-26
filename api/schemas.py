@@ -1,10 +1,18 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class ComplaintCreate(BaseModel):
-    title: str
-    description: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=20_000)
+
+    @field_validator("title", "description")
+    @classmethod
+    def reject_blank_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
 
     order_id: Optional[str] = None
     transaction_id: Optional[str] = None
@@ -23,9 +31,17 @@ class ComplaintResponse(BaseModel):
 # -------------------------
 
 class RegisterRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=120)
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=256)
+
+    @field_validator("name")
+    @classmethod
+    def reject_blank_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
 
 
 class LoginRequest(BaseModel):
