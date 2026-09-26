@@ -4,9 +4,12 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from prompt_manager import (build_prompt, get_prompt_metadata)
-from schema_validator import validate_complaint_result
-from ai_output_guard import validate_ai_output
+from ml.prompt_manager import (
+    build_prompt,
+    get_prompt_metadata
+)
+from ml.schema_validator import validate_complaint_result
+from ml.ai_output_guard import validate_ai_output
 
 
 load_dotenv()

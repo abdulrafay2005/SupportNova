@@ -3,17 +3,44 @@ import { useAuth } from "@/auth/AuthContext";
 import type { Role } from "@/types";
 
 export function ProtectedRoute() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
-  if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+
+  if (loading) {
+    return null;
   }
+
+  if (!user) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname }}
+      />
+    );
+  }
+
   return <Outlet />;
 }
 
-export function RoleRoute({ roles }: { roles: Role[] }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  if (!roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+export function RoleRoute({
+  roles,
+}: {
+  roles: Role[];
+}) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return null;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!roles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <Outlet />;
 }

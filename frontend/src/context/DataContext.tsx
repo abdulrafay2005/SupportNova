@@ -7,25 +7,32 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createComplaint, getComplaints, getComplaintAnalysis } from "@/api/complaints";
+
+import {
+  createComplaint,
+  getComplaints,
+  getComplaintAnalysis,
+} from "@/api/complaints";
+
 import {
   articles as seedArticles,
   auditLogs as seedLogs,
-  complaints as seedComplaints,
   customers as seedCustomers,
   documents,
   notifications as seedNotes,
   reports,
   rules as seedRules,
 } from "@/data/mockData";
+
 import { useAuth } from "@/auth/AuthContext";
+
 import type {
   AuditLog,
   Complaint,
   ComplaintDraft,
-  EscalationLevel,
   ComplaintStatus,
   Customer,
+  EscalationAssessment,
   KnowledgeArticle,
   NotificationItem,
   PolicyDocument,
@@ -46,113 +53,321 @@ interface DataContextValue {
   reports: ReportDefinition[];
   auditLogs: AuditLog[];
   notifications: NotificationItem[];
- addComplaint: (draft: ComplaintDraft) => Promise<Complaint>;
-  updateComplaint: (id: string, patch: Partial<Complaint>, event?: Omit<TimelineEvent, "id" | "timestamp">) => void;
-  addComment: (id: string, body: string, internal?: boolean) => void;
-  setStatus: (id: string, status: ComplaintStatus, resolution?: string) => void;
-  setPriority: (id: string, priority: Priority) => void;
-  assignTo: (id: string, assigneeId: string, assigneeName: string) => void;
+
+  loadingComplaints: boolean;
+  complaintError: string | null;
+
+  addComplaint: (draft: ComplaintDraft) => Promise<Complaint>;
+
+  refreshComplaints: () => Promise<void>;
+
+  getComplaint: (id: string) => Complaint | undefined;
+
+  getComplaintAnalysis: (id: string) => Promise<unknown>;
+
+  updateComplaint: (
+    id: string,
+    patch: Partial<Complaint>,
+    event?: Omit<TimelineEvent, "id" | "timestamp">,
+  ) => void;
+
+  addComment: (
+    id: string,
+    body: string,
+    internal?: boolean,
+  ) => void;
+
+  setStatus: (
+    id: string,
+    status: ComplaintStatus,
+    resolution?: string,
+  ) => void;
+
+  setPriority: (
+    id: string,
+    priority: Priority,
+  ) => void;
+
+  assignTo: (
+    id: string,
+    assigneeId: string,
+    assigneeName: string,
+  ) => void;
+
   toggleRule: (id: string) => void;
+
   markNotificationRead: (id: string) => void;
+
   markAllNotificationsRead: () => void;
+
   getCustomer: (id: string) => Customer | undefined;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
 
-export function DataProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const [complaints, setComplaints] = useState<Complaint[]>(seedComplaints);
-  const [customers, setCustomers] = useState<Customer[]>(seedCustomers);
-  const [rules, setRules] = useState<RoutingRule[]>(seedRules);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(seedLogs);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotes);
-  const articles = seedArticles;
+/* =========================================================
+   HELPERS
+   ========================================================= */
 
-// addition
+function mapSentiment(label?: string): Sentiment {
+  switch (label?.trim().toLowerCase()) {
+    case "positive":
+      return "Positive";
 
-const mapBackendComplaint = (backendComplaint: {
+    case "strongly negative":
+      return "Strongly Negative";
+
+    case "negative":
+      return "Negative";
+
+    default:
+      return "Neutral";
+  }
+}
+
+function mapPriority(level?: string): Priority {
+  switch (level?.trim().toLowerCase()) {
+    case "critical":
+      return "P0";
+
+    case "high":
+      return "P1";
+
+    case "medium":
+      return "P2";
+
+    default:
+      return "P3";
+  }
+}
+
+function mapUrgency(level?: string): Urgency {
+  switch (level?.trim().toLowerCase()) {
+    case "critical":
+      return "Critical";
+
+    case "high":
+      return "High";
+
+    case "medium":
+      return "Medium";
+
+    default:
+      return "Low";
+  }
+}
+
+function mapStatus(status?: string | null): ComplaintStatus {
+  const allowed: ComplaintStatus[] = [
+    "New",
+    "Analyzed",
+    "Assigned",
+    "In Progress",
+    "Awaiting Customer",
+    "Escalated",
+    "Resolved",
+    "Closed",
+    "Reopened",
+    "Manual Review",
+  ];
+
+  if (
+    status &&
+    allowed.includes(status as ComplaintStatus)
+  ) {
+    return status as ComplaintStatus;
+  }
+
+  return "New";
+}
+
+function mapEscalationLevel(
+  level?: string,
+): EscalationAssessment["level"] {
+  switch (level?.trim().toLowerCase()) {
+    case "critical":
+      return "Critical Management Escalation";
+
+    case "high":
+      return "Supervisor Review";
+
+    case "medium":
+      return "Department Manager";
+
+    case "low":
+      return "Specialist Team";
+
+    default:
+      return "No Escalation";
+  }
+}
+
+/* =========================================================
+   BACKEND COMPLAINT
+   ========================================================= */
+
+interface BackendComplaint {
   id: string;
   title: string;
   description: string;
+  user_id?: string | null;
   order_id?: string | null;
   transaction_id?: string | null;
   product?: string | null;
   amount?: string | null;
   date?: string | null;
+
+  customer_id?: string | null;
+
+  assigned_to?: string | null;
+  assigned_department?: string | null;
+
+  status?: string | null;
+
+  manual_review_required?: boolean;
+  review_status?: string | null;
+
   created_at: string;
-}): Complaint => {
-  const createdAt = backendComplaint.created_at;
+  updated_at?: string | null;
+
+  resolved_at?: string | null;
+  closed_at?: string | null;
+}
+
+/* =========================================================
+   MAP BACKEND → FRONTEND
+   ========================================================= */
+
+function mapBackendComplaint(
+  item: BackendComplaint,
+): Complaint {
+  const createdAt = item.created_at;
+  const updatedAt = item.updated_at ?? createdAt;
+
+  const status = mapStatus(item.status);
+
+  const priority = mapPriority(
+    item.manual_review_required
+      ? "critical"
+      : undefined,
+  );
+
+  const urgency = mapUrgency(
+    item.manual_review_required
+      ? "critical"
+      : undefined,
+  );
+
+  const product =
+    item.product ?? "Unspecified";
+
+  const department =
+    item.assigned_department ??
+    "Unassigned";
+
+  const customerId =
+    item.customer_id ?? "unknown";
+
+  const escalated =
+    status === "Escalated" ||
+    item.manual_review_required === true;
 
   return {
-    id: backendComplaint.id,
-    subject: backendComplaint.title,
-    description: backendComplaint.description,
+    id: item.id,
 
-    // GET /api/complaints currently does not contain a frontend user/customer ID.
-    customerId: "c-guest",
+    subject: item.title,
 
-    category: "Pending analysis",
-    subcategory: "Pending analysis",
-    department: "Unassigned",
+    description: item.description,
 
-    productService:
-      backendComplaint.product || "Unspecified",
 
-    priority: "P2",
-    urgency: "Medium",
+    customerId: item.user_id || "unknown",
+
+    category: "Analysis available in complaint details",
+
+    subcategory: "Analysis available in complaint details",
+
+    department,
+
+    productService: product,
+
+    priority,
+
+    urgency,
+
     sentiment: "Neutral",
 
-    status: "Analyzed",
-    escalated: false,
-    validation: "Pending",
+    status,
+
+    escalated,
+
+    validation: item.manual_review_required
+      ? "Manual Review Required"
+      : "Pending",
+
+    assigneeId:
+      item.assigned_to ?? undefined,
 
     createdAt,
-    updatedAt: createdAt,
+
+    updatedAt,
 
     reference:
-      backendComplaint.order_id || undefined,
+      item.order_id ?? undefined,
 
     intelligence: {
       summary:
-        "Complaint retrieved from the SupportNova backend.",
+        "Open this complaint to view its complete SupportNova intelligence analysis.",
 
-      primaryIssue:
-        backendComplaint.title,
+      primaryIssue: item.title,
 
       secondaryIssues: [],
 
-      category: "Pending analysis",
-      subcategory: "Pending analysis",
+      category:
+        "Open complaint analysis",
+
+      subcategory:
+        "Open complaint analysis",
 
       sentiment: "Neutral",
-      urgency: "Medium",
-      priority: "P2",
 
-      productService:
-        backendComplaint.product || "Unspecified",
+      urgency,
+
+      priority,
+
+      productService: product,
 
       entities: [
-        backendComplaint.order_id
-          ? `Order: ${backendComplaint.order_id}`
+        item.order_id
+          ? `Order: ${item.order_id}`
           : "",
-        backendComplaint.transaction_id
-          ? `Transaction: ${backendComplaint.transaction_id}`
+
+        item.transaction_id
+          ? `Transaction: ${item.transaction_id}`
           : "",
-        backendComplaint.amount
-          ? `Amount: ${backendComplaint.amount}`
+
+        item.product
+          ? `Product: ${item.product}`
           : "",
-        backendComplaint.date
-          ? `Date: ${backendComplaint.date}`
+
+        item.amount
+          ? `Amount: ${item.amount}`
+          : "",
+
+        item.date
+          ? `Date: ${item.date}`
           : "",
       ].filter(Boolean),
 
-      department: "Unassigned",
-      escalation: false,
-      reason: "",
+      department,
+
+      escalation: escalated,
+
+      reason: item.manual_review_required
+        ? "Manual review is required."
+        : "",
 
       recommendation:
-        "Open the complaint to retrieve its analysis.",
+        "Open the complaint to view classification, policy, resolution, escalation and agent guidance.",
 
       agentGuidance: [],
 
@@ -160,536 +375,898 @@ const mapBackendComplaint = (backendComplaint: {
     },
 
     validationDetail: {
-      overall: "Pending",
+      overall: item.manual_review_required
+        ? "Manual Review Required"
+        : "Pending",
+
       fields: [],
+
       policyValidated: false,
+
       resolutionValidated: false,
     },
 
     escalationAssessment: {
-      required: false,
-      level: "No Escalation",
-      reason: "",
+      required: escalated,
+
+      level: escalated
+        ? "Supervisor Review"
+        : "No Escalation",
+
+      reason: item.manual_review_required
+        ? "Manual review is required."
+        : "",
+
       validation: "Pending",
     },
 
     timeline: [
       {
-        id: `${backendComplaint.id}-t1`,
+        id: `${item.id}-created`,
         timestamp: createdAt,
         type: "submitted",
-        title: "Complaint retrieved from backend",
+        title: "Complaint submitted",
         actor: "System",
         actorRole: "System",
       },
     ],
   };
-};
+}
 
-useEffect(() => {
-  const loadComplaints = async () => {
-    console.log("1. Loading complaints...");
+/* =========================================================
+   PROVIDER
+   ========================================================= */
 
-    try {
-      const backendComplaints = await getComplaints();
+export function DataProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const { user } = useAuth();
 
-      console.log("2. Backend complaints:", backendComplaints);
+  const [complaints, setComplaints] =
+    useState<Complaint[]>([]);
 
-      const mappedComplaints = backendComplaints.map(
-        mapBackendComplaint,
-      );
+  const [customers] =
+    useState<Customer[]>(seedCustomers);
 
-      console.log("3. Mapped complaints:", mappedComplaints);
+  const [rules, setRules] =
+    useState<RoutingRule[]>(seedRules);
 
-      setComplaints(mappedComplaints);
+  const [auditLogs, setAuditLogs] =
+    useState<AuditLog[]>(seedLogs);
 
-      console.log("4. Complaints state updated");
-    } catch (error) {
-      console.error("5. Failed to load complaints:", error);
-    }
-  };
+  const [notifications, setNotifications] =
+    useState<NotificationItem[]>(seedNotes);
 
-  loadComplaints();
-}, []);
+  const [loadingComplaints, setLoadingComplaints] =
+    useState(false);
 
-//useeffect2
-useEffect(() => {
-  const testAnalysis = async () => {
-    try {
-      const analysis = await getComplaintAnalysis(
-        "6ab627d7a676fa4da8ebe5ac",
-      );
+  const [complaintError, setComplaintError] =
+    useState<string | null>(null);
 
-      console.log("Backend analysis:", analysis);
-    } catch (error) {
-      console.error("Failed to load analysis:", error);
-    }
-  };
+  const articles = seedArticles;
 
-  testAnalysis();
-}, []);
-//useeffect2
+  /* =======================================================
+     LOAD COMPLAINTS
+     ======================================================= */
 
-  const log = useCallback(
-    (action: string, resource: string, details: string, result: AuditLog["result"] = "Success") => {
-      const entry: AuditLog = {
-        id: `a-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        user: user?.name ?? "System",
-        action,
-        resource,
-        result,
-        details,
-      };
-      setAuditLogs((prev) => [entry, ...prev]);
+  const refreshComplaints = useCallback(
+    async () => {
+      if (!user) {
+        setComplaints([]);
+        return;
+      }
+
+      setLoadingComplaints(true);
+      setComplaintError(null);
+
+      try {
+        const response = await getComplaints();
+
+        const data = Array.isArray(response)
+          ? response
+          : response?.complaints ?? [];
+
+        const mapped = data.map(
+          (item: BackendComplaint) =>
+            mapBackendComplaint(item),
+        );
+
+        setComplaints(mapped);
+      } catch (error: any) {
+        console.error(
+          "Failed to load complaints:",
+          error,
+        );
+
+        const message =
+          error?.response?.data?.detail ??
+          "Unable to load complaints.";
+
+        setComplaintError(message);
+      } finally {
+        setLoadingComplaints(false);
+      }
     },
     [user],
   );
 
+  useEffect(() => {
+    refreshComplaints();
+  }, [refreshComplaints]);
+
+  /* =======================================================
+     GET COMPLAINT
+     ======================================================= */
+
+  const getComplaint = useCallback(
+    (id: string) => {
+      return complaints.find(
+        (complaint) =>
+          complaint.id === id,
+      );
+    },
+    [complaints],
+  );
+
+  /* =======================================================
+     GET FULL BACKEND ANALYSIS
+     ======================================================= */
+
+  const getAnalysis = useCallback(
+    async (id: string) => {
+      return getComplaintAnalysis(id);
+    },
+    [],
+  );
+
+  /* =======================================================
+     LOCAL AUDIT
+     ======================================================= */
+
+  const log = useCallback(
+    (
+      action: string,
+      resource: string,
+      details: string,
+      result: AuditLog["result"] = "Success",
+    ) => {
+      const entry: AuditLog = {
+        id: `a-${Date.now()}`,
+
+        timestamp:
+          new Date().toISOString(),
+
+        user:
+          user?.name ?? "System",
+
+        action,
+
+        resource,
+
+        result,
+
+        details,
+      };
+
+      setAuditLogs(
+        (previous) => [
+          entry,
+          ...previous,
+        ],
+      );
+    },
+    [user],
+  );
+
+  /* =======================================================
+     CREATE COMPLAINT
+     ======================================================= */
+
+  const addComplaint = useCallback(
+    async (
+      draft: ComplaintDraft,
+    ): Promise<Complaint> => {
+      if (!user) {
+        throw new Error(
+          "You must be logged in to submit a complaint.",
+        );
+      }
+
+      if (user.role !== "Customer") {
+        throw new Error(
+          "Only customers can submit complaints.",
+        );
+      }
+
+      const result =
+        await createComplaint(draft);
+
+      const escalation =
+        result.escalation;
+
+      const severity =
+        escalation?.level;
+
+      const priority =
+        mapPriority(severity);
+
+      const urgency =
+        mapUrgency(severity);
+
+      const sentiment =
+        mapSentiment(
+          result.sentiment?.label,
+        );
+
+      let status: ComplaintStatus =
+        "Analyzed";
+
+      if (escalation?.required) {
+        status = "Escalated";
+      }
+
+      if (
+        result.follow_up?.required ||
+        result.clarification_questions
+          ?.length
+      ) {
+        status = "Awaiting Customer";
+      }
+
+      const now =
+        new Date().toISOString();
+
+      const product =
+        result.entities?.product ??
+        draft.productService?.trim() ??
+        "Unspecified";
+
+      const department =
+        result.routing?.primary_department ??
+        result.classification
+          ?.department ??
+        "Unassigned";
+
+      const created: Complaint = {
+        id: result.complaint.id,
+
+        subject:
+          result.complaint.title,
+
+        description:
+          result.complaint.description,
+
+        customerId: user.id,
+
+        category:
+          result.classification.category,
+
+        subcategory:
+          result.classification
+            .subcategory,
+
+        department,
+
+        productService: product,
+
+        priority,
+
+        urgency,
+
+        sentiment,
+
+        status,
+
+        escalated:
+          escalation?.required ??
+          false,
+
+        validation:
+          escalation?.required
+            ? "Manual Review Required"
+            : "Pending",
+
+        createdAt: now,
+
+        updatedAt: now,
+
+        reference:
+          result.entities?.order_id ??
+          draft.reference?.trim() ??
+          undefined,
+
+        contactChannel:
+          draft.contactChannel ??
+          "Portal",
+
+        customerType:
+          draft.customerType,
+
+        previousComplaintId:
+          draft.previousComplaintId
+            ?.trim() || undefined,
+
+        attachmentName:
+          draft.attachmentName,
+
+        intelligence: {
+          summary:
+            result.resolution
+              ?.explanation ?? "",
+
+          primaryIssue:
+            result.complaint.title,
+
+          secondaryIssues: [],
+
+          category:
+            result.classification
+              .category,
+
+          subcategory:
+            result.classification
+              .subcategory,
+
+          sentiment,
+
+          urgency,
+
+          priority,
+
+          productService: product,
+
+          entities: [
+            result.entities?.order_id
+              ? `Order: ${result.entities.order_id}`
+              : "",
+
+            result.entities
+              ?.transaction_id
+              ? `Transaction: ${result.entities.transaction_id}`
+              : "",
+
+            result.entities?.product
+              ? `Product: ${result.entities.product}`
+              : "",
+
+            result.entities?.amount
+              ? `Amount: ${result.entities.amount}`
+              : "",
+
+            result.entities?.date
+              ? `Date: ${result.entities.date}`
+              : "",
+          ].filter(Boolean),
+
+          department,
+
+          escalation:
+            escalation?.required ??
+            false,
+
+          reason:
+            escalation?.reason ??
+            "",
+
+          recommendation:
+            result.resolution
+              ?.steps?.join(" ") ??
+            "",
+
+          agentGuidance:
+            result.agent_guidance
+              ? [result.agent_guidance]
+              : [],
+
+          clarificationQuestions:
+            result.clarification_questions ??
+            [],
+
+          generatedResponse:
+            result.customer_response ??
+            undefined,
+        },
+
+        validationDetail: {
+          overall:
+            escalation?.required
+              ? "Manual Review Required"
+              : "Pending",
+
+          fields: [],
+
+          policyValidated:
+            Boolean(
+              result.policies?.length,
+            ),
+
+          resolutionValidated:
+            Boolean(
+              result.resolution,
+            ),
+        },
+
+        escalationAssessment: {
+          required:
+            escalation?.required ??
+            false,
+
+          level:
+            mapEscalationLevel(
+              escalation?.level,
+            ),
+
+          reason:
+            escalation?.reason ??
+            "",
+
+          validation: "Pending",
+        },
+
+        missingInfo:
+          result.clarification_questions
+            ?.length
+            ? {
+                items:
+                  result.clarification_questions,
+
+                questions:
+                  result.clarification_questions,
+              }
+            : undefined,
+
+        customerResponse:
+          result.customer_response ??
+          undefined,
+
+        /*
+         * The current frontend FollowUp type does not
+         * contain the backend "message" field.
+         *
+         * Full follow-up information is still available
+         * from GET /api/complaints/{id}/analysis.
+         */
+        followUp:
+          undefined,
+
+        timeline: [
+          {
+            id: `${result.complaint.id}-submitted`,
+
+            timestamp: now,
+
+            type: "submitted",
+
+            title:
+              "Complaint submitted and analyzed",
+
+            actor: user.name,
+
+            actorRole: user.role,
+          },
+        ],
+      };
+
+      setComplaints(
+        (previous) => [
+          created,
+          ...previous.filter(
+            (item) =>
+              item.id !== created.id,
+          ),
+        ],
+      );
+
+      log(
+        "Created complaint",
+        created.id,
+        created.subject,
+      );
+
+      setNotifications(
+        (previous) => [
+          {
+            id: `n-${Date.now()}`,
+
+            title:
+              `Complaint ${created.id}`,
+
+            body:
+              `${created.subject} · ${created.status}`,
+
+            timestamp:
+              created.createdAt,
+
+            read: false,
+
+            href:
+              `/complaints/${created.id}`,
+          },
+
+          ...previous,
+        ],
+      );
+
+      return created;
+    },
+    [user, log],
+  );
+
+  /* =======================================================
+     LOCAL UPDATE
+     ======================================================= */
 
   const updateComplaint = useCallback(
-    (id: string, patch: Partial<Complaint>, event?: Omit<TimelineEvent, "id" | "timestamp">) => {
-      setComplaints((prev) =>
-        prev.map((c) => {
-          if (c.id !== id) return c;
-          const next: Complaint = {
-            ...c,
-            ...patch,
-            updatedAt: new Date().toISOString(),
-          };
-          if (event) {
-            next.timeline = [
-              ...c.timeline,
-              {
-                ...event,
-                id: `${id}-${Date.now()}`,
-                timestamp: new Date().toISOString(),
-              },
-            ];
-          }
-          return next;
-        }),
+    (
+      id: string,
+      patch: Partial<Complaint>,
+      event?: Omit<
+        TimelineEvent,
+        "id" | "timestamp"
+      >,
+    ) => {
+      setComplaints(
+        (previous) =>
+          previous.map(
+            (complaint) => {
+              if (
+                complaint.id !== id
+              ) {
+                return complaint;
+              }
+
+              const now =
+                new Date().toISOString();
+
+              const updated = {
+                ...complaint,
+                ...patch,
+                updatedAt: now,
+              };
+
+              if (event) {
+                updated.timeline = [
+                  ...complaint.timeline,
+                  {
+                    ...event,
+                    id: `${id}-${Date.now()}`,
+                    timestamp: now,
+                  },
+                ];
+              }
+
+              return updated;
+            },
+          ),
       );
     },
     [],
   );
 
-const addComment = useCallback(
-  (complaintId: string, text: string, internal = false) => {
-    if (!user) return;
+  /* =======================================================
+     COMMENT
+     ======================================================= */
 
-    updateComplaint(
-      complaintId,
-      {},
-      {
-        type: internal ? "note" : "comment",
-        title: internal ? "Internal note added" : "Comment added",
-        description: text,
-        actor: user.name,
-        actorRole: user.role,
-      },
-    );
+  const addComment = useCallback(
+    (
+      id: string,
+      body: string,
+      internal = false,
+    ) => {
+      if (!user) return;
 
-    log(
-      internal ? "Added internal note" : "Added comment",
-      complaintId,
-      text,
-    );
-  },
-  [user, updateComplaint, log],
-);
-const addComplaint = useCallback(
-  async (draft: ComplaintDraft): Promise<Complaint> => {
-    const isStaff = user?.role === "Agent" || user?.role === "Admin";
-
-    let customerId = user?.id ?? "c-guest";
-    let customerName =
-      draft.customerName?.trim() || user?.name || "Customer";
-    let countedOnCreate = false;
-
-    if ((isStaff || !user) && draft.customerEmail) {
-      const existing = customers.find(
-        (c) =>
-          c.email.toLowerCase() ===
-          draft.customerEmail!.trim().toLowerCase(),
-      );
-
-      if (existing) {
-        customerId = existing.id;
-        customerName = existing.name;
-      } else {
-        customerId = `c-${Date.now()}`;
-        customerName = draft.customerName?.trim() || draft.customerEmail;
-
-        const createdCustomer: Customer = {
-          id: customerId,
-          name: customerName,
-          email: draft.customerEmail.trim(),
-          reference: draft.reference,
-          joinedAt: new Date().toISOString(),
-          openComplaints: 1,
-        };
-
-        setCustomers((prev) => [createdCustomer, ...prev]);
-        countedOnCreate = true;
-      }
-    } else if (user?.role === "Customer") {
-      customerId = user.id;
-      customerName = user.name;
-
-      if (!customers.some((c) => c.id === user.id)) {
-        setCustomers((prev) => [
-          {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phone: user.phone,
-            joinedAt: user.createdAt,
-            openComplaints: 1,
-          },
-          ...prev,
-        ]);
-
-        countedOnCreate = true;
-      }
-    }
-
-    // Send complaint to the real FastAPI backend.
-    const backendResult = await createComplaint(draft);
-
-    const now = new Date().toISOString();
-
-    // --------------------------------------------------------
-    // Backend severity → existing frontend UI model
-    // --------------------------------------------------------
-
-    const backendSeverity =
-      backendResult.escalation.level || "Standard";
-
-    const priorityMap: Record<string, Priority> = {
-      Standard: "P3",
-      Medium: "P2",
-      High: "P1",
-      Critical: "P0",
-    };
-
-    const urgencyMap: Record<string, Urgency> = {
-      Standard: "Low",
-      Medium: "Medium",
-      High: "High",
-      Critical: "Critical",
-    };
-
-    const escalationLevelMap: Record<string, EscalationLevel> = {
-      Standard: "No Escalation",
-      Medium: "Supervisor Review",
-      High: "Department Manager",
-      Critical: "Critical Management Escalation",
-    };
-
-    const priority =
-      priorityMap[backendSeverity] ?? "P3";
-
-    const urgency =
-      urgencyMap[backendSeverity] ?? "Low";
-
-    const sentimentLabel =
-      backendResult.sentiment.label?.toLowerCase();
-
-    const sentiment: Sentiment =
-      sentimentLabel === "positive"
-        ? "Positive"
-        : sentimentLabel === "negative"
-          ? "Negative"
-          : sentimentLabel === "strongly negative"
-            ? "Strongly Negative"
-            : "Neutral";
-
-    const escalationLevel =
-      backendResult.escalation.required
-        ? (
-            escalationLevelMap[backendSeverity] ??
-            "Supervisor Review"
-          )
-        : "No Escalation";
-
-    const productService =
-      backendResult.entities.product ||
-      draft.productService?.trim() ||
-      "Unspecified";
-
-    const created: Complaint = {
-      id: backendResult.complaint.id,
-      subject: backendResult.complaint.title,
-      description: backendResult.complaint.description,
-      customerId,
-
-      category: backendResult.classification.category,
-      subcategory: backendResult.classification.subcategory,
-      department: backendResult.classification.department,
-
-      productService,
-
-      priority,
-      urgency,
-      sentiment,
-
-      status: "Analyzed",
-
-      escalated: backendResult.escalation.required,
-
-      // Ground-truth validator is not part of the live API flow yet.
-      validation: "Pending",
-
-      createdAt: now,
-      updatedAt: now,
-
-      reference:
-        backendResult.entities.order_id ||
-        draft.reference?.trim() ||
-        undefined,
-
-      contactChannel: draft.contactChannel || "Portal",
-      customerType: draft.customerType,
-
-      previousComplaintId:
-        draft.previousComplaintId?.trim() || undefined,
-
-      attachmentName: draft.attachmentName,
-
-      intelligence: {
-        summary:
-          backendResult.resolution.explanation || "",
-
-        primaryIssue:
-          backendResult.complaint.title,
-
-        secondaryIssues: [],
-
-        category:
-          backendResult.classification.category,
-
-        subcategory:
-          backendResult.classification.subcategory,
-
-        sentiment,
-
-        urgency,
-
-        priority,
-
-        productService,
-
-        entities: [
-          backendResult.entities.order_id
-            ? `Order: ${backendResult.entities.order_id}`
-            : "",
-          backendResult.entities.transaction_id
-            ? `Transaction: ${backendResult.entities.transaction_id}`
-            : "",
-          backendResult.entities.product
-            ? `Product: ${backendResult.entities.product}`
-            : "",
-          backendResult.entities.amount
-            ? `Amount: ${backendResult.entities.amount}`
-            : "",
-          backendResult.entities.date
-            ? `Date: ${backendResult.entities.date}`
-            : "",
-        ].filter(Boolean),
-
-        department:
-          backendResult.classification.department,
-
-        escalation:
-          backendResult.escalation.required,
-
-        reason:
-          backendResult.escalation.reason || "",
-
-        recommendation:
-          backendResult.resolution.steps?.join(" ") || "",
-
-        agentGuidance:
-          backendResult.agent_guidance
-            ? [backendResult.agent_guidance]
-            : [],
-
-        clarificationQuestions:
-          backendResult.clarification_questions || [],
-
-        generatedResponse:
-          backendResult.customer_response || undefined,
-      },
-
-      validationDetail: {
-        overall: "Pending",
-        fields: [],
-        policyValidated: false,
-        resolutionValidated: false,
-      },
-
-      escalationAssessment: {
-        required:
-          backendResult.escalation.required,
-
-        level: escalationLevel,
-
-        reason:
-          backendResult.escalation.reason || "",
-
-        validation: "Pending",
-      },
-
-      missingInfo:
-        backendResult.clarification_questions?.length
-          ? {
-              items:
-                backendResult.clarification_questions,
-
-              questions:
-                backendResult.clarification_questions,
-            }
-          : undefined,
-
-      customerResponse:
-        backendResult.customer_response || undefined,
-
-      timeline: [
+      updateComplaint(
+        id,
+        {},
         {
-          id: `${backendResult.complaint.id}-t1`,
-          timestamp: now,
-          type: "submitted",
-          title: "Complaint submitted and analyzed",
-          actor: customerName,
-          actorRole: "Customer",
+          type: internal
+            ? "note"
+            : "comment",
+
+          title: internal
+            ? "Internal note added"
+            : "Comment added",
+
+          description: body,
+
+          actor: user.name,
+
+          actorRole: user.role,
         },
-      ],
-    };
-
-    setComplaints((prev) => [created, ...prev]);
-
-    if (!countedOnCreate) {
-      setCustomers((prev) =>
-        prev.map((c) =>
-          c.id === customerId
-            ? {
-                ...c,
-                openComplaints: c.openComplaints + 1,
-              }
-            : c,
-        ),
       );
-    }
 
-    log(
-      "Created complaint",
-      created.id,
-      created.subject,
-    );
+      log(
+        internal
+          ? "Added internal note"
+          : "Added comment",
+        id,
+        body,
+      );
+    },
+    [user, updateComplaint, log],
+  );
 
-    setNotifications((prev) => [
-      {
-        id: `n-${Date.now()}`,
-        title: `New complaint ${created.id}`,
-        body: `${created.subject} · analyzed`,
-        timestamp: created.createdAt,
-        read: false,
-        href: `/complaints/${created.id}`,
-      },
-      ...prev,
-    ]);
-
-    return created;
-  },
-  [user, customers, log],
-);
+  /* =======================================================
+     STATUS
+     ======================================================= */
 
   const setStatus = useCallback(
-    (id: string, status: ComplaintStatus, resolution?: string) => {
+    (
+      id: string,
+      status: ComplaintStatus,
+      resolution?: string,
+    ) => {
       if (!user) return;
-      const patch: Partial<Complaint> = { status };
-      if (status === "Escalated") patch.escalated = true;
-      if (resolution) patch.resolution = resolution;
-      let type: TimelineEvent["type"] = "status";
-      if (status === "Escalated") type = "escalated";
-      if (status === "Resolved") type = "resolved";
-      if (status === "Closed") type = "closed";
-      updateComplaint(id, patch, {
-        type,
-        title: status === "Resolved" || status === "Closed" ? `Complaint ${status.toLowerCase()}` : `Status changed to ${status}`,
-        description: resolution,
-        actor: user.name,
-        actorRole: user.role,
-      });
-      log("Changed complaint status", id, `Status set to ${status}`);
+
+      const patch: Partial<Complaint> = {
+        status,
+      };
+
+      if (status === "Escalated") {
+        patch.escalated = true;
+      }
+
+      if (resolution) {
+        patch.resolution =
+          resolution;
+      }
+
+      let type: TimelineEvent["type"] =
+        "status";
+
+      if (status === "Escalated") {
+        type = "escalated";
+      } else if (status === "Resolved") {
+        type = "resolved";
+      } else if (status === "Closed") {
+        type = "closed";
+      }
+
+      updateComplaint(
+        id,
+        patch,
+        {
+          type,
+
+          title:
+            `Status changed to ${status}`,
+
+          description:
+            resolution,
+
+          actor: user.name,
+
+          actorRole: user.role,
+        },
+      );
+
+      log(
+        "Changed complaint status",
+        id,
+        `Status set to ${status}`,
+      );
     },
     [user, updateComplaint, log],
   );
+
+  /* =======================================================
+     PRIORITY
+     ======================================================= */
 
   const setPriority = useCallback(
-    (id: string, priority: Priority) => {
+    (
+      id: string,
+      priority: Priority,
+    ) => {
       if (!user) return;
-      updateComplaint(id, { priority }, {
-        type: "status",
-        title: `Priority set to ${priority}`,
-        actor: user.name,
-        actorRole: user.role,
-      });
-      log("Changed priority", id, `Priority set to ${priority}`);
+
+      updateComplaint(
+        id,
+        { priority },
+        {
+          type: "status",
+
+          title:
+            `Priority set to ${priority}`,
+
+          actor: user.name,
+
+          actorRole: user.role,
+        },
+      );
+
+      log(
+        "Changed priority",
+        id,
+        `Priority set to ${priority}`,
+      );
     },
     [user, updateComplaint, log],
   );
 
+  /* =======================================================
+     ASSIGNMENT
+     ======================================================= */
+
   const assignTo = useCallback(
-    (id: string, assigneeId: string, assigneeName: string) => {
+    (
+      id: string,
+      assigneeId: string,
+      assigneeName: string,
+    ) => {
       if (!user) return;
-      updateComplaint(id, { assigneeId }, {
-        type: "assigned",
-        title: `Assigned to ${assigneeName}`,
-        actor: user.name,
-        actorRole: user.role,
-      });
-      log("Assigned complaint", id, `Assigned to ${assigneeName}`);
+
+      updateComplaint(
+        id,
+        { assigneeId },
+        {
+          type: "assigned",
+
+          title:
+            `Assigned to ${assigneeName}`,
+
+          actor: user.name,
+
+          actorRole: user.role,
+        },
+      );
+
+      log(
+        "Assigned complaint",
+        id,
+        `Assigned to ${assigneeName}`,
+      );
     },
     [user, updateComplaint, log],
   );
+
+  /* =======================================================
+     RULES
+     ======================================================= */
 
   const toggleRule = useCallback(
     (id: string) => {
-      setRules((prev) =>
-        prev.map((r) =>
-          r.id === id
-            ? {
-                ...r,
-                status: r.status === "Active" ? "Disabled" : "Active",
-                updatedAt: new Date().toISOString(),
-              }
-            : r,
-        ),
+      const current =
+        rules.find(
+          (rule) => rule.id === id,
+        );
+
+      if (!current) return;
+
+      setRules(
+        (previous) =>
+          previous.map(
+            (rule) =>
+              rule.id === id
+                ? {
+                    ...rule,
+
+                    status:
+                      rule.status ===
+                      "Active"
+                        ? "Disabled"
+                        : "Active",
+
+                    updatedAt:
+                      new Date().toISOString(),
+                  }
+                : rule,
+          ),
       );
-      const current = rules.find((r) => r.id === id);
+
       log(
-        current?.status === "Active" ? "Disabled routing rule" : "Enabled routing rule",
+        current.status === "Active"
+          ? "Disabled routing rule"
+          : "Enabled routing rule",
         id,
-        current?.subcategory ?? id,
+        current.subcategory,
       );
     },
     [rules, log],
   );
 
-  const markNotificationRead = useCallback((id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  }, []);
+  /* =======================================================
+     NOTIFICATIONS
+     ======================================================= */
 
-  const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+  const markNotificationRead =
+    useCallback((id: string) => {
+      setNotifications(
+        (previous) =>
+          previous.map(
+            (notification) =>
+              notification.id === id
+                ? {
+                    ...notification,
+                    read: true,
+                  }
+                : notification,
+          ),
+      );
+    }, []);
 
-  const getCustomer = useCallback((id: string) => customers.find((c) => c.id === id), [customers]);
+  const markAllNotificationsRead =
+    useCallback(() => {
+      setNotifications(
+        (previous) =>
+          previous.map(
+            (notification) => ({
+              ...notification,
+              read: true,
+            }),
+          ),
+      );
+    }, []);
 
-  const value = useMemo(
+  /* =======================================================
+     CUSTOMER
+     ======================================================= */
+
+  const getCustomer = useCallback(
+    (id: string) =>
+      customers.find(
+        (customer) =>
+          customer.id === id,
+      ),
+    [customers],
+  );
+
+  /* =======================================================
+     CONTEXT
+     ======================================================= */
+
+  const value = useMemo<DataContextValue>(
     () => ({
+      complaints,
+
+      customers,
+
+      articles,
+
+      rules,
+
+      documents,
+
+      reports,
+
+      auditLogs,
+
+      notifications,
+
+      loadingComplaints,
+
+      complaintError,
+
+      addComplaint,
+
+      refreshComplaints,
+
+      getComplaint,
+
+      getComplaintAnalysis:
+        getAnalysis,
+
+      updateComplaint,
+
+      addComment,
+
+      setStatus,
+
+      setPriority,
+
+      assignTo,
+
+      toggleRule,
+
+      markNotificationRead,
+
+      markAllNotificationsRead,
+
+      getCustomer,
+    }),
+    [
       complaints,
       customers,
       articles,
@@ -698,25 +1275,12 @@ const addComplaint = useCallback(
       reports,
       auditLogs,
       notifications,
+      loadingComplaints,
+      complaintError,
       addComplaint,
-      updateComplaint,
-      addComment,
-      setStatus,
-      setPriority,
-      assignTo,
-      toggleRule,
-      markNotificationRead,
-      markAllNotificationsRead,
-      getCustomer,
-    }),
-    [
-      complaints,
-      customers,
-      articles,
-      rules,
-      auditLogs,
-      notifications,
-      addComplaint,
+      refreshComplaints,
+      getComplaint,
+      getAnalysis,
       updateComplaint,
       addComment,
       setStatus,
@@ -729,11 +1293,26 @@ const addComplaint = useCallback(
     ],
   );
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  return (
+    <DataContext.Provider value={value}>
+      {children}
+    </DataContext.Provider>
+  );
 }
 
+/* =========================================================
+   HOOK
+   ========================================================= */
+
 export function useData() {
-  const ctx = useContext(DataContext);
-  if (!ctx) throw new Error("useData must be used within DataProvider");
-  return ctx;
+  const context =
+    useContext(DataContext);
+
+  if (!context) {
+    throw new Error(
+      "useData must be used within DataProvider",
+    );
+  }
+
+  return context;
 }

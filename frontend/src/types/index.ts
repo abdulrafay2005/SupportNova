@@ -1,4 +1,9 @@
-export type Role = "Customer" | "Agent" | "Admin";
+export type Role =
+  | "Customer"
+  | "Agent"
+  | "Reviewer"
+  | "Manager"
+  | "Admin";
 
 export type UserStatus = "Active" | "Inactive";
 
@@ -11,7 +16,8 @@ export type ComplaintStatus =
   | "Escalated"
   | "Resolved"
   | "Closed"
-  | "Reopened";
+  | "Reopened"
+  | "Manual Review";
 
 export type Priority = "P0" | "P1" | "P2" | "P3";
 
@@ -71,6 +77,7 @@ export const COMPLAINT_STATUSES: ComplaintStatus[] = [
   "Resolved",
   "Closed",
   "Reopened",
+  "Manual Review",
 ];
 
 export const PRIORITIES: Priority[] = ["P0", "P1", "P2", "P3"];
@@ -85,6 +92,7 @@ export const OPEN_STATUSES: ComplaintStatus[] = [
   "Awaiting Customer",
   "Escalated",
   "Reopened",
+  "Manual Review",
 ];
 
 export interface User {

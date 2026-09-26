@@ -1,9 +1,22 @@
-import { HashRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import {
+  HashRouter,
+  Navigate,
+  Route,
+  Routes,
+  useParams,
+} from "react-router-dom";
+
 import { AuthProvider, useAuth } from "@/auth/AuthContext";
-import { ProtectedRoute, RoleRoute } from "@/auth/ProtectedRoute";
+import {
+  ProtectedRoute,
+  RoleRoute,
+} from "@/auth/ProtectedRoute";
+
 import { AppLayout } from "@/components/AppLayout";
 import { PublicLayout } from "@/components/PublicLayout";
+
 import { DataProvider } from "@/context/DataContext";
+
 import { Analytics } from "@/pages/Analytics";
 import { ArticleDetail } from "@/pages/ArticleDetail";
 import { AuditLogs } from "@/pages/AuditLogs";
@@ -34,6 +47,7 @@ import { UsersAdmin } from "@/pages/UsersAdmin";
 
 function AdaptiveLayout() {
   const { user } = useAuth();
+
   return user ? <AppLayout /> : <PublicLayout />;
 }
 
@@ -43,60 +57,312 @@ export default function App() {
       <AuthProvider>
         <DataProvider>
           <Routes>
+            {/* =========================
+                PUBLIC ROUTES
+            ========================== */}
+
             <Route path="/" element={<Home />} />
-            <Route path="/how-it-works" element={<HowItWorks />} />
+
+            <Route
+              path="/how-it-works"
+              element={<HowItWorks />}
+            />
+
             <Route path="/about" element={<About />} />
+
             <Route path="/contact" element={<Contact />} />
+
             <Route path="/track" element={<Track />} />
-            <Route path="/privacy" element={<Legal kind="privacy" />} />
-            <Route path="/terms" element={<Legal kind="terms" />} />
+
+            <Route
+              path="/privacy"
+              element={<Legal kind="privacy" />}
+            />
+
+            <Route
+              path="/terms"
+              element={<Legal kind="terms" />}
+            />
+
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            <Route
+              path="/register"
+              element={<Register />}
+            />
+
+            <Route
+              path="/forgot-password"
+              element={<ForgotPassword />}
+            />
+
+            {/* =========================
+                PUBLIC / AUTH-AWARE HELP
+            ========================== */}
 
             <Route element={<AdaptiveLayout />}>
-              <Route path="/help-center" element={<HelpCenter />} />
-              <Route path="/help-center/:id" element={<ArticleDetail />} />
-              <Route path="/knowledge" element={<Navigate to="/help-center" replace />} />
-              <Route path="/knowledge/:id" element={<KnowledgeRedirect />} />
+              <Route
+                path="/help-center"
+                element={<HelpCenter />}
+              />
+
+              <Route
+                path="/help-center/:id"
+                element={<ArticleDetail />}
+              />
+
+              <Route
+                path="/knowledge"
+                element={
+                  <Navigate
+                    to="/help-center"
+                    replace
+                  />
+                }
+              />
+
+              <Route
+                path="/knowledge/:id"
+                element={<KnowledgeRedirect />}
+              />
             </Route>
+
+            {/* =========================
+                PROTECTED APPLICATION
+            ========================== */}
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
-                
 
-                <Route element={<RoleRoute roles={["Agent", "Admin"]} />}>
-                  <Route path="/complaints" element={<Complaints />} />
-                  <Route path="/queue" element={<MyQueue />} />
-                  <Route path="/manual-review" element={<ManualReview />} />
-                  <Route path="/analytics" element={<Analytics />} />
-                  <Route path="/reports" element={<Reports />} />
+                {/* =====================
+                    SHARED AUTHENTICATED
+                ====================== */}
+
+                <Route
+                  path="/dashboard"
+                  element={<Dashboard />}
+                />
+
+                <Route
+                  path="/profile"
+                  element={<Profile />}
+                />
+
+                <Route
+                  path="/settings"
+                  element={<Settings />}
+                />
+
+                <Route
+                    path="/complaints/:id"
+                    element={<ComplaintDetail />}
+                />
+
+                {/* =====================
+                    COMPLAINT DETAIL
+                    All authenticated roles
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute
+                      roles={[
+                        "Customer",
+                        "Agent",
+                        "Reviewer",
+                        "Manager",
+                        "Admin",
+                      ]}
+                    />
+                  }
+                >
+                  
                 </Route>
 
-                <Route element={<RoleRoute roles={["Customer"]} />}>
-                  <Route path="/my-complaints" element={<MyComplaints />} />
-                  <Route path="/complaints/new" element={<NewComplaint />} />
-              <Route path="/complaints/:id" element={<ComplaintDetail />} />
+                {/* =====================
+                    CUSTOMER
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute roles={["Customer"]} />
+                  }
+                >
+                  <Route
+                    path="/my-complaints"
+                    element={<MyComplaints />}
+                  />
+
+                  <Route
+                    path="/complaints/new"
+                    element={<NewComplaint />}
+                  />
                 </Route>
 
-                <Route element={<RoleRoute roles={["Admin"]} />}>
-                  <Route path="/users" element={<UsersAdmin />} />
-                  <Route path="/rules" element={<RulesAdmin />} />
-                  <Route path="/documents" element={<Documents />} />
-                  <Route path="/audit-logs" element={<AuditLogs />} />
-                  <Route path="/admin/users" element={<Navigate to="/users" replace />} />
-                  <Route path="/admin/rules" element={<Navigate to="/rules" replace />} />
-                  <Route path="/admin/audit" element={<Navigate to="/audit-logs" replace />} />
+                {/* =====================
+                    AGENT
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute roles={["Agent"]} />
+                  }
+                >
+                  <Route
+                    path="/complaints"
+                    element={<Complaints />}
+                  />
+
+                  <Route
+                    path="/queue"
+                    element={<MyQueue />}
+                  />
                 </Route>
 
-                <Route path="*" element={<NotFound />} />
+                {/* =====================
+                    REVIEWER
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute roles={["Reviewer"]} />
+                  }
+                >
+                  <Route
+                    path="/manual-review"
+                    element={<ManualReview />}
+                  />
+
+                  <Route
+                    path="/queue"
+                    element={<MyQueue />}
+                  />
+                </Route>
+
+                {/* =====================
+                    MANAGER
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute roles={["Manager"]} />
+                  }
+                >
+                  <Route
+                    path="/complaints"
+                    element={<Complaints />}
+                  />
+
+                  <Route
+                    path="/analytics"
+                    element={<Analytics />}
+                  />
+
+                  <Route
+                    path="/reports"
+                    element={<Reports />}
+                  />
+                </Route>
+
+                {/* =====================
+                    ADMIN
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute roles={["Admin"]} />
+                  }
+                >
+                  <Route
+                    path="/complaints"
+                    element={<Complaints />}
+                  />
+
+                  <Route
+                    path="/analytics"
+                    element={<Analytics />}
+                  />
+
+                  <Route
+                    path="/reports"
+                    element={<Reports />}
+                  />
+
+                  <Route
+                    path="/users"
+                    element={<UsersAdmin />}
+                  />
+
+                  <Route
+                    path="/rules"
+                    element={<RulesAdmin />}
+                  />
+
+                  <Route
+                    path="/documents"
+                    element={<Documents />}
+                  />
+
+                  <Route
+                    path="/audit-logs"
+                    element={<AuditLogs />}
+                  />
+
+                  <Route
+                    path="/admin/users"
+                    element={
+                      <Navigate
+                        to="/users"
+                        replace
+                      />
+                    }
+                  />
+
+                  <Route
+                    path="/admin/rules"
+                    element={
+                      <Navigate
+                        to="/rules"
+                        replace
+                      />
+                    }
+                  />
+
+                  <Route
+                    path="/admin/audit"
+                    element={
+                      <Navigate
+                        to="/audit-logs"
+                        replace
+                      />
+                    }
+                  />
+                </Route>
+
+                {/* =====================
+                    APPLICATION 404
+                ====================== */}
+
+                <Route
+                  path="*"
+                  element={<NotFound />}
+                />
               </Route>
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* =========================
+                GLOBAL 404
+            ========================== */}
+
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to="/"
+                  replace
+                />
+              }
+            />
           </Routes>
         </DataProvider>
       </AuthProvider>
@@ -106,5 +372,11 @@ export default function App() {
 
 function KnowledgeRedirect() {
   const { id } = useParams();
-  return <Navigate to={`/help-center/${id ?? ""}`} replace />;
+
+  return (
+    <Navigate
+      to={`/help-center/${id ?? ""}`}
+      replace
+    />
+  );
 }

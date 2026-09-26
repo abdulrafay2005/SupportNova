@@ -7,6 +7,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
 
+from api.workflow import build_workflow_fields
+from api.audit import create_audit_log
+from api.assignment import assign_complaint
+from api.workflow_validation import validate_workflow
+
 
 # ============================================================
 # PROJECT PATHS
@@ -38,11 +43,21 @@ from api.database import (
 # ============================================================
 
 from api.schemas import (
-    ComplaintCreate,
+ComplaintCreate,
     RegisterRequest,
     LoginRequest,
     LoginResponse,
-    UserResponse
+    UserResponse,
+    ComplaintAssignmentRequest,
+    ReviewActionRequest,
+    ReviewModifyRequest,
+    ReviewReclassifyRequest,
+    ReviewReassignRequest,
+    ReviewCommentRequest,
+    AgentCommentRequest,
+    AgentResolveRequest,
+    AgentEscalateRequest,
+    UserStatusRequest,
 )
 
 
@@ -57,6 +72,50 @@ from api.auth import (
     decode_access_token
 )
 
+# ============================================================
+# REVIEW
+# ============================================================
+
+from api.review import (
+   approve_review,
+    modify_review,
+    reclassify_review,
+    reassign_review,
+    escalate_review,
+    reject_review,
+    add_review_comment,
+    regenerate_review_response,
+)
+
+# ============================================================
+# AGENT
+# ============================================================
+
+from api.agent import (
+    start_handling,
+    await_customer,
+    resolve_complaint,
+    escalate_complaint,
+    add_agent_comment,
+)
+
+# ============================================================
+# MANAGMENT
+# ============================================================
+
+from api.management import (
+    get_management_complaints,
+    get_management_complaint,
+    get_escalated_complaints,
+    reassign_management_complaint,
+    get_sla_overview,
+    get_operational_analytics,
+    get_report_data,
+    get_users,
+    update_user_status,
+    get_user_overview,
+    get_audit_logs,
+)
 
 # ============================================================
 # EXISTING ML / AI PIPELINE
@@ -66,7 +125,6 @@ from api.auth import (
 
 from rule_engine import analyze_complaint
 from genai import analyze_with_ai
-
 
 # ============================================================
 # APPLICATION
@@ -424,6 +482,39 @@ def create_complaint(
         analysis
     )
 
+    validation = validate_workflow(analysis)
+
+    analysis["validation"] = validation
+    analysis["manual_review_required"] = (
+        validation["manual_review_required"]
+    )
+
+    workflow_fields = build_workflow_fields(
+        analysis=analysis,
+        customer_id=current_user["id"]
+    )
+
+    complaints_collection.update_one(
+        {
+            "_id": result.inserted_id
+        },
+        {
+            "$set": workflow_fields
+        }
+    )
+
+    create_audit_log(
+        actor_id=current_user["id"],
+        actor_role=current_user["role"],
+        action="Complaint submitted",
+        entity_type="complaint",
+        entity_id=complaint_id,
+        details={
+            "status": workflow_fields["status"]
+        }
+    )
+
+    
     # --------------------------------------------------------
     # Save complete analysis
     # --------------------------------------------------------
@@ -465,41 +556,18 @@ def create_complaint(
 # ============================================================
 
 @app.get("/api/complaints")
-def get_complaints(
-    current_user=Depends(get_current_user)
-):
-
+def get_complaints(current_user=Depends(get_current_user)):
     role = current_user["role"]
 
-    # --------------------------------------------------------
-    # CUSTOMER
-    # --------------------------------------------------------
-
     if role == "Customer":
-
         query = {
             "user_id": current_user["id"]
         }
 
-    # --------------------------------------------------------
-    # STAFF
-    # --------------------------------------------------------
-
-    elif role in {
-        "Agent",
-        "Reviewer",
-        "Manager",
-        "Admin"
-    }:
-
+    elif role in {"Agent", "Reviewer", "Manager", "Admin"}:
         query = {}
 
-    # --------------------------------------------------------
-    # UNKNOWN ROLE
-    # --------------------------------------------------------
-
     else:
-
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to access complaints"
@@ -507,54 +575,70 @@ def get_complaints(
 
     complaints = []
 
-    for complaint in complaints_collection.find(
-        query
-    ).sort(
+    for complaint in complaints_collection.find(query).sort(
         "created_at",
         -1
     ):
-
         complaints.append({
+            "id": str(complaint["_id"]),
+            "title": complaint["title"],
+            "description": complaint["description"],
 
-            "id": str(
-                complaint["_id"]
+            # IMPORTANT: user_id, not doc
+            "user_id": str(
+                complaint.get("user_id", "")
             ),
 
-            "title": complaint.get(
-                "title"
+            "order_id": complaint.get("order_id"),
+            "transaction_id": complaint.get("transaction_id"),
+            "product": complaint.get("product"),
+            "amount": complaint.get("amount"),
+            "date": complaint.get("date"),
+
+            "status": complaint.get(
+                "status",
+                "New"
             ),
 
-            "description": complaint.get(
-                "description"
+            "assigned_to": complaint.get(
+                "assigned_to"
             ),
 
-            "order_id": complaint.get(
-                "order_id"
+            "assigned_department": complaint.get(
+                "assigned_department"
             ),
 
-            "transaction_id": complaint.get(
-                "transaction_id"
+            "manual_review_required": complaint.get(
+                "manual_review_required",
+                False
             ),
 
-            "product": complaint.get(
-                "product"
+            "review_status": complaint.get(
+                "review_status"
             ),
 
-            "amount": complaint.get(
-                "amount"
+            "reviewer_id": complaint.get(
+                "reviewer_id"
             ),
 
-            "date": complaint.get(
-                "date"
-            ),
-
-            "created_at": complaint.get(
+            "created_at": complaint[
                 "created_at"
-            )
+            ],
+
+            "updated_at": complaint.get(
+                "updated_at"
+            ),
+
+            "resolved_at": complaint.get(
+                "resolved_at"
+            ),
+
+            "closed_at": complaint.get(
+                "closed_at"
+            ),
         })
 
     return complaints
-
 
 # ============================================================
 # VIEW SINGLE COMPLAINT
@@ -680,6 +764,7 @@ def get_complaint(
     }
 
 
+
 # ============================================================
 # VIEW COMPLAINT ANALYSIS
 # ============================================================
@@ -780,3 +865,757 @@ def get_analysis(
         )
 
     return analysis["analysis"]
+
+
+@app.get("/api/complaints/{complaint_id}/activity")
+def get_complaint_activity(
+    complaint_id: str,
+    current_user=Depends(get_current_user)
+):
+    try:
+        complaint = complaints_collection.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid complaint ID"
+        )
+
+    if not complaint:
+        raise HTTPException(
+            status_code=404,
+            detail="Complaint not found"
+        )
+
+    role = current_user["role"]
+
+    if role == "Customer":
+        if str(complaint.get("user_id")) != str(
+            current_user["id"]
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this complaint"
+            )
+
+    elif role not in {
+        "Agent",
+        "Reviewer",
+        "Manager",
+        "Admin"
+    }:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to access this complaint"
+        )
+
+    activities = []
+
+    for activity in complaint_activity_collection.find(
+        {
+            "complaint_id": complaint_id
+        }
+    ).sort(
+        "timestamp",
+        1
+    ):
+        activities.append({
+            "id": str(activity["_id"]),
+            "timestamp": activity["timestamp"],
+            "type": activity["type"],
+            "title": activity["title"],
+            "description": activity.get(
+                "description",
+                ""
+            ),
+            "actor": activity.get(
+                "actor",
+                "SupportNova"
+            ),
+            "actorRole": activity.get(
+                "actor_role",
+                "System"
+            ),
+        })
+
+    return activities
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+
+class ComplaintUpdateRequest(BaseModel):
+    status: Optional[str] = None
+    assigned_to: Optional[str] = None
+    assigned_department: Optional[str] = None
+    priority: Optional[str] = None
+
+
+@app.patch("/api/complaints/{complaint_id}")
+def update_complaint(
+    complaint_id: str,
+    payload: ComplaintUpdateRequest,
+    current_user=Depends(get_current_user)
+):
+    try:
+        complaint = complaints_collection.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid complaint ID"
+        )
+
+    if not complaint:
+        raise HTTPException(
+            status_code=404,
+            detail="Complaint not found"
+        )
+
+    role = current_user["role"]
+
+    if role not in {
+        "Agent",
+        "Reviewer",
+        "Manager",
+        "Admin"
+    }:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to update complaints"
+        )
+
+    update_fields = {}
+
+    if payload.status is not None:
+        update_fields["status"] = payload.status
+
+    if payload.assigned_to is not None:
+        update_fields["assigned_to"] = payload.assigned_to
+
+    if payload.assigned_department is not None:
+        update_fields[
+            "assigned_department"
+        ] = payload.assigned_department
+
+    if payload.priority is not None:
+        update_fields["priority"] = payload.priority
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    update_fields["updated_at"] = now
+
+    if payload.status == "Resolved":
+        update_fields["resolved_at"] = now
+
+    if payload.status == "Closed":
+        update_fields["closed_at"] = now
+
+    if not update_fields:
+        return {
+            "message": "Nothing to update"
+        }
+
+    complaints_collection.update_one(
+        {"_id": ObjectId(complaint_id)},
+        {"$set": update_fields}
+    )
+
+    actor = current_user.get(
+        "name",
+        current_user.get(
+            "email",
+            "SupportNova User"
+        )
+    )
+
+    actor_role = current_user.get(
+        "role",
+        "System"
+    )
+
+    if payload.status is not None:
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="status",
+            title=f"Status changed to {payload.status}",
+            description=(
+                f"Complaint status changed to "
+                f"{payload.status}."
+            ),
+            actor=actor,
+            actor_role=actor_role,
+        )
+
+    if payload.assigned_department is not None:
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="routed",
+            title="Department routing",
+            description=(
+                f"Complaint routed to "
+                f"{payload.assigned_department}."
+            ),
+            actor=actor,
+            actor_role=actor_role,
+        )
+
+    if payload.assigned_to is not None:
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="assigned",
+            title="Complaint assigned",
+            description=(
+                "Complaint assigned to a support agent."
+            ),
+            actor=actor,
+            actor_role=actor_role,
+        )
+
+    updated = complaints_collection.find_one(
+        {"_id": ObjectId(complaint_id)}
+    )
+
+    return {
+        "id": str(updated["_id"]),
+        "title": updated["title"],
+        "description": updated["description"],
+        "user_id": str(
+            updated.get("user_id", "")
+        ),
+        "order_id": updated.get("order_id"),
+        "transaction_id": updated.get(
+            "transaction_id"
+        ),
+        "product": updated.get("product"),
+        "amount": updated.get("amount"),
+        "date": updated.get("date"),
+        "status": updated.get(
+            "status",
+            "New"
+        ),
+        "assigned_to": updated.get(
+            "assigned_to"
+        ),
+        "assigned_department": updated.get(
+            "assigned_department"
+        ),
+        "manual_review_required": updated.get(
+            "manual_review_required",
+            False
+        ),
+        "review_status": updated.get(
+            "review_status"
+        ),
+        "created_at": updated["created_at"],
+        "updated_at": updated.get(
+            "updated_at"
+        ),
+        "resolved_at": updated.get(
+            "resolved_at"
+        ),
+        "closed_at": updated.get(
+            "closed_at"
+        ),
+    }
+
+
+@app.patch("/api/complaints/{complaint_id}/assign")
+def assign_complaint_endpoint(
+    complaint_id: str,
+    request: ComplaintAssignmentRequest,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return assign_complaint(
+        complaint_id=complaint_id,
+        agent_id=request.agent_id,
+        actor=current_user
+    )
+
+@app.get("/api/agent/queue")
+def get_agent_queue(
+    current_user=Depends(
+        require_roles("Agent")
+    )
+):
+    complaints = []
+
+    for complaint in complaints_collection.find({
+        "assigned_to": current_user["id"]
+    }).sort(
+        "updated_at",
+        -1
+    ):
+        complaints.append({
+            "id": str(complaint["_id"]),
+            "title": complaint["title"],
+            "description": complaint["description"],
+
+            "order_id": complaint.get("order_id"),
+            "transaction_id": complaint.get("transaction_id"),
+            "product": complaint.get("product"),
+            "amount": complaint.get("amount"),
+            "date": complaint.get("date"),
+
+            "status": complaint.get(
+                "status",
+                "New"
+            ),
+
+            "assigned_to": complaint.get(
+                "assigned_to"
+            ),
+
+            "assigned_department": complaint.get(
+                "assigned_department"
+            ),
+
+            "manual_review_required": complaint.get(
+                "manual_review_required",
+                False
+            ),
+
+            "review_status": complaint.get(
+                "review_status"
+            ),
+
+            "created_at": complaint.get(
+                "created_at"
+            ),
+
+            "updated_at": complaint.get(
+                "updated_at"
+            )
+        })
+
+    return complaints
+
+
+
+@app.get("/api/review/queue")
+def get_review_queue(
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    complaints = []
+
+    for complaint in complaints_collection.find({
+        "manual_review_required": True,
+        "review_status": "Pending"
+    }).sort(
+        "updated_at",
+        -1
+    ):
+        complaints.append({
+            "id": str(complaint["_id"]),
+
+            "title": complaint["title"],
+            "description": complaint["description"],
+
+            "order_id": complaint.get("order_id"),
+            "transaction_id": complaint.get("transaction_id"),
+            "product": complaint.get("product"),
+            "amount": complaint.get("amount"),
+            "date": complaint.get("date"),
+
+            "status": complaint.get(
+                "status",
+                "New"
+            ),
+
+            "assigned_to": complaint.get(
+                "assigned_to"
+            ),
+
+            "assigned_department": complaint.get(
+                "assigned_department"
+            ),
+
+            "manual_review_required": complaint.get(
+                "manual_review_required",
+                False
+            ),
+
+            "review_status": complaint.get(
+                "review_status"
+            ),
+
+            "reviewer_id": complaint.get(
+                "reviewer_id"
+            ),
+
+            "created_at": complaint.get(
+                "created_at"
+            ),
+
+            "updated_at": complaint.get(
+                "updated_at"
+            )
+        })
+
+    return complaints
+
+# ============================================================
+# REVIEWER ACTIONS
+# REVIEWER ONLY
+# ============================================================
+
+@app.post(
+    "/api/review/{complaint_id}/approve"
+)
+def approve_complaint_review(
+    complaint_id: str,
+    request: ReviewActionRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    return approve_review(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        comment=request.comment
+    )
+
+
+@app.post(
+    "/api/review/{complaint_id}/modify"
+)
+def modify_complaint_review(
+    complaint_id: str,
+    request: ReviewModifyRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    return modify_review(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        comment=request.comment,
+        customer_response=request.customer_response,
+        agent_guidance=request.agent_guidance
+    )
+
+
+@app.post(
+    "/api/review/{complaint_id}/reclassify"
+)
+def reclassify_complaint_review(
+    complaint_id: str,
+    request: ReviewReclassifyRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    return reclassify_review(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        category=request.category,
+        subcategory=request.subcategory,
+        department=request.department,
+        comment=request.comment
+    )
+
+
+@app.post(
+    "/api/review/{complaint_id}/reassign"
+)
+def reassign_complaint_review(
+    complaint_id: str,
+    request: ReviewReassignRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    return reassign_review(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        agent_id=request.agent_id,
+        comment=request.comment
+    )
+
+
+@app.post(
+    "/api/review/{complaint_id}/escalate"
+)
+def escalate_complaint_review(
+    complaint_id: str,
+    request: ReviewActionRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    if not request.comment:
+        raise HTTPException(
+            status_code=400,
+            detail="Comment is required when escalating"
+        )
+
+    return escalate_review(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        comment=request.comment
+    )
+
+
+@app.post(
+    "/api/review/{complaint_id}/reject"
+)
+def reject_complaint_review(
+    complaint_id: str,
+    request: ReviewActionRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    if not request.comment:
+        raise HTTPException(
+            status_code=400,
+            detail="Comment is required when rejecting"
+        )
+
+    return reject_review(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        comment=request.comment
+    )
+
+
+@app.post(
+    "/api/review/{complaint_id}/comment"
+)
+def comment_on_review(
+    complaint_id: str,
+    request: ReviewCommentRequest,
+    current_user=Depends(
+        require_roles("Reviewer")
+    )
+):
+    return add_review_comment(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        comment=request.comment
+    )
+
+@app.post("/api/review/{complaint_id}/regenerate-response")
+def regenerate_complaint_response(
+    complaint_id: str,
+    request: ReviewActionRequest,
+    current_user=Depends(require_roles("Reviewer"))
+):
+    if not request.comment:
+        raise HTTPException(
+            status_code=400,
+            detail="Comment is required when regenerating the response"
+        )
+
+    return regenerate_review_response(
+        complaint_id=complaint_id,
+        reviewer=current_user,
+        comment=request.comment
+    )
+
+#////////////////////
+
+@app.post("/api/agent/{complaint_id}/start")
+def start_agent_handling(
+    complaint_id: str,
+    current_user=Depends(require_roles("Agent"))
+):
+    return start_handling(
+        complaint_id=complaint_id,
+        agent=current_user
+    )
+
+
+@app.post("/api/agent/{complaint_id}/await-customer")
+def await_customer_response(
+    complaint_id: str,
+    request: AgentCommentRequest,
+    current_user=Depends(require_roles("Agent"))
+):
+    return await_customer(
+        complaint_id=complaint_id,
+        agent=current_user,
+        comment=request.comment
+    )
+
+
+@app.post("/api/agent/{complaint_id}/resolve")
+def resolve_agent_complaint(
+    complaint_id: str,
+    request: AgentResolveRequest,
+    current_user=Depends(require_roles("Agent"))
+):
+    return resolve_complaint(
+        complaint_id=complaint_id,
+        agent=current_user,
+        comment=request.comment
+    )
+
+
+@app.post("/api/agent/{complaint_id}/escalate")
+def escalate_agent_complaint(
+    complaint_id: str,
+    request: AgentEscalateRequest,
+    current_user=Depends(require_roles("Agent"))
+):
+    return escalate_complaint(
+        complaint_id=complaint_id,
+        agent=current_user,
+        comment=request.comment
+    )
+
+
+@app.post("/api/agent/{complaint_id}/comment")
+def add_agent_complaint_comment(
+    complaint_id: str,
+    request: AgentCommentRequest,
+    current_user=Depends(require_roles("Agent"))
+):
+    return add_agent_comment(
+        complaint_id=complaint_id,
+        agent=current_user,
+        comment=request.comment
+    )
+
+# ============================================================
+# MANAGEMENT / ADMIN
+# ============================================================
+
+@app.get("/api/management/complaints")
+def management_complaints(
+    status: str | None = None,
+    department: str | None = None,
+    assigned_to: str | None = None,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_management_complaints(
+        status=status,
+        department=department,
+        assigned_to=assigned_to
+    )
+
+
+@app.get("/api/management/complaints/{complaint_id}")
+def management_complaint_detail(
+    complaint_id: str,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_management_complaint(
+        complaint_id
+    )
+
+
+@app.get("/api/management/escalations")
+def management_escalations(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_escalated_complaints()
+
+
+@app.post("/api/management/complaints/{complaint_id}/reassign")
+def management_reassign(
+    complaint_id: str,
+    request: ReviewReassignRequest,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return reassign_management_complaint(
+        complaint_id=complaint_id,
+        agent_id=request.agent_id,
+        actor=current_user
+    )
+
+
+@app.get("/api/management/sla")
+def management_sla(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_sla_overview()
+
+
+@app.get("/api/management/analytics")
+def management_analytics(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_operational_analytics()
+
+
+@app.get("/api/management/reports")
+def management_reports(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_report_data()
+
+
+# ============================================================
+# USER MANAGEMENT
+# ============================================================
+
+@app.get("/api/admin/users")
+def admin_users(
+    role: str | None = None,
+    status: str | None = None,
+    current_user=Depends(
+        require_roles("Admin")
+    )
+):
+    return get_users(
+        role=role,
+        status=status
+    )
+
+
+@app.patch("/api/admin/users/{user_id}/status")
+def admin_update_user_status(
+    user_id: str,
+    request: UserStatusRequest,
+    current_user=Depends(
+        require_roles("Admin")
+    )
+):
+    return update_user_status(
+        user_id=user_id,
+        status=request.status,
+        actor=current_user
+    )
+
+
+@app.get("/api/admin/users/overview")
+def admin_user_overview(
+    current_user=Depends(
+        require_roles("Admin")
+    )
+):
+    return get_user_overview()
+
+
+@app.get("/api/admin/audit")
+def admin_audit_logs(
+    limit: int = 100,
+    current_user=Depends(
+        require_roles("Admin")
+    )
+):
+    return get_audit_logs(
+        limit=limit
+    )
