@@ -22,6 +22,10 @@ Repository inspection, frontend/backend integration review, targeted integration
 - `api/schemas.py`
 - `AI_USAGE.md`
 - `SRS_GAP_ANALYSIS.md`
+- `FRONTEND_INTEGRATION_AUDIT.md`
+- `frontend/src/api/management.ts`
+- `frontend/src/api/knowledgeBase.ts`
+- `frontend/src/pages/Documents.tsx`
 
 ## Tests performed
 - `npm ci --ignore-scripts` in `frontend/` — passed.
