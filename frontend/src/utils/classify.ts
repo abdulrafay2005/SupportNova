@@ -20,6 +20,7 @@ export function workflowSteps(status: ComplaintStatus, escalated: boolean) {
     Reopened: 4,
     Resolved: 5,
     Closed: 5,
+    "Manual Review": 2,
   };
   const current = index[status] ?? 0;
   return [

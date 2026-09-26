@@ -522,7 +522,108 @@ class AgentWorkflowTests(WorkflowTestCase):
             entry["description"],
         )
 
-    def test_resolve_persists_resolution_and_visible_activity(self):
+    def test_resolve_persists_resolution_then_finalizes_closed(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="In Progress",
+        )
+
+        result = agent_module.resolve_complaint(
+            complaint_id=complaint_id,
+            agent=self.agent_user,
+            comment="Refund issued for duplicate charge.",
+        )
+
+        # The final persisted lifecycle state is Closed —
+        # complaints never sit permanently in Resolved.
+        self.assertEqual(result["status"], "Closed")
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+        self.assertEqual(stored["status"], "Closed")
+        self.assertEqual(
+            stored["resolution_comment"],
+            "Refund issued for duplicate charge.",
+        )
+        self.assertIsNotNone(stored["resolved_at"])
+        self.assertIsNotNone(stored["closed_at"])
+
+        resolved = self.activity.find_one({
+            "complaint_id": complaint_id,
+            "type": "resolved",
+        })
+        self.assertTrue(resolved["customer_visible"])
+
+        closed = self.activity.find_one({
+            "complaint_id": complaint_id,
+            "type": "closed",
+        })
+        self.assertIsNotNone(closed)
+        self.assertTrue(closed["customer_visible"])
+
+
+# ============================================================
+# 3b. State-machine validation (duplicate / invalid actions)
+# ============================================================
+
+class StateValidationTests(WorkflowTestCase):
+    def test_start_rejected_when_already_in_progress(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="In Progress",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.start_handling(
+                complaint_id=complaint_id,
+                agent=self.agent_user,
+            )
+        self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_await_rejected_when_already_awaiting(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Awaiting Customer",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.await_customer(
+                complaint_id=complaint_id,
+                agent=self.agent_user,
+                comment="Again?",
+            )
+        self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_resolve_rejected_on_closed_complaint(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Closed",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.resolve_complaint(
+                complaint_id=complaint_id,
+                agent=self.agent_user,
+                comment="Trying to resolve again.",
+            )
+        self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_escalate_rejected_when_already_escalated(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Escalated",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.escalate_complaint(
+                complaint_id=complaint_id,
+                agent=self.agent_user,
+                comment="Escalate again.",
+            )
+        self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_double_resolve_cannot_duplicate_activity(self):
         complaint_id = self._create_complaint(
             assigned_to=str(self.agent_id),
             status="In Progress",
@@ -531,24 +632,291 @@ class AgentWorkflowTests(WorkflowTestCase):
         agent_module.resolve_complaint(
             complaint_id=complaint_id,
             agent=self.agent_user,
-            comment="Refund issued for duplicate charge.",
+            comment="Refund issued.",
+        )
+
+        with self.assertRaises(HTTPException):
+            agent_module.resolve_complaint(
+                complaint_id=complaint_id,
+                agent=self.agent_user,
+                comment="Refund issued.",
+            )
+
+        resolved_events = [
+            d for d in self.activity.documents
+            if d["complaint_id"] == complaint_id
+            and d["type"] == "resolved"
+        ]
+        self.assertEqual(len(resolved_events), 1)
+
+
+# ============================================================
+# 3c. Customer response (Awaiting Customer flow)
+# ============================================================
+
+class CustomerResponseTests(WorkflowTestCase):
+    def setUp(self):
+        super().setUp()
+        self.customer_user = {
+            "id": "customer-1",
+            "name": "Customer One",
+            "role": "Customer",
+        }
+
+    def test_customer_response_persists_and_returns_in_progress(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Awaiting Customer",
+            customer_facing_request="Send the receipt.",
+        )
+
+        result = agent_module.customer_respond(
+            complaint_id=complaint_id,
+            customer=self.customer_user,
+            message="Receipt attached, order NM-1.",
+        )
+
+        self.assertEqual(result["status"], "In Progress")
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+        # Status returns to In Progress and the assigned
+        # agent is preserved.
+        self.assertEqual(stored["status"], "In Progress")
+        self.assertEqual(
+            stored["assigned_to"], str(self.agent_id)
+        )
+        self.assertEqual(
+            len(stored["customer_responses"]), 1
+        )
+        self.assertEqual(
+            stored["customer_responses"][0]["message"],
+            "Receipt attached, order NM-1.",
+        )
+
+        # The response is a customer-visible activity.
+        entry = self.activity.find_one({
+            "complaint_id": complaint_id,
+            "title": "Customer responded",
+        })
+        self.assertIsNotNone(entry)
+        self.assertTrue(entry["customer_visible"])
+        self.assertEqual(entry["actor_role"], "Customer")
+
+    def test_other_customer_cannot_respond(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Awaiting Customer",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.customer_respond(
+                complaint_id=complaint_id,
+                customer={
+                    "id": "customer-2",
+                    "name": "Other Customer",
+                    "role": "Customer",
+                },
+                message="I am not the owner.",
+            )
+        self.assertEqual(ctx.exception.status_code, 403)
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+        self.assertEqual(stored["status"], "Awaiting Customer")
+
+    def test_response_rejected_when_not_awaiting(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="In Progress",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.customer_respond(
+                complaint_id=complaint_id,
+                customer=self.customer_user,
+                message="Here is more info.",
+            )
+        self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_blank_response_rejected(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Awaiting Customer",
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            agent_module.customer_respond(
+                complaint_id=complaint_id,
+                customer=self.customer_user,
+                message="   ",
+            )
+        self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_response_does_not_touch_analysis_or_assignment(self):
+        complaint_id = self._create_complaint(
+            assigned_to=str(self.agent_id),
+            status="Awaiting Customer",
+            assigned_department="Payments & Finance",
+        )
+
+        agent_module.customer_respond(
+            complaint_id=complaint_id,
+            customer=self.customer_user,
+            message="Extra details.",
         )
 
         stored = self.complaints.find_one(
             {"_id": ObjectId(complaint_id)}
         )
-        self.assertEqual(stored["status"], "Resolved")
         self.assertEqual(
-            stored["resolution_comment"],
-            "Refund issued for duplicate charge.",
+            stored["assigned_department"],
+            "Payments & Finance",
         )
-        self.assertIsNotNone(stored["resolved_at"])
+        self.assertEqual(
+            stored["assigned_to"], str(self.agent_id)
+        )
 
-        entry = self.activity.find_one({
+
+# ============================================================
+# 3d. Post-review routing (Reviewer -> Agent handoff)
+# ============================================================
+
+class ReviewerRoutingTests(WorkflowTestCase):
+    def setUp(self):
+        super().setUp()
+        self.reviewer = {
+            "id": "reviewer-1",
+            "name": "Reviewer One",
+            "role": "Reviewer",
+        }
+
+    def _create_review_complaint(self, **overrides):
+        complaint_id = self._create_complaint(
+            manual_review_required=True,
+            review_status="Pending",
+            status="Manual Review",
+            **overrides,
+        )
+        self.analyses.insert_one({
             "complaint_id": complaint_id,
-            "type": "resolved",
+            "analysis": {
+                "classification": {
+                    "category": "Billing",
+                    "department": "Payments & Finance",
+                },
+            },
         })
-        self.assertTrue(entry["customer_visible"])
+        return complaint_id
+
+    def test_approved_complaint_enters_agent_workflow(self):
+        complaint_id = self._create_review_complaint()
+
+        result = review_module.approve_review(
+            complaint_id=complaint_id,
+            reviewer=self.reviewer,
+            comment="Classification is correct.",
+        )
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+
+        # Review is complete: leaves the reviewer queue
+        # population and is auto-assigned to an agent.
+        self.assertEqual(stored["review_status"], "Completed")
+        self.assertFalse(stored["manual_review_required"])
+        self.assertEqual(stored["status"], "Assigned")
+        self.assertEqual(
+            stored["assigned_to"], str(self.agent_id)
+        )
+        self.assertEqual(result["status"], "Assigned")
+        self.assertEqual(
+            result["assigned_agent"]["id"],
+            str(self.agent_id),
+        )
+
+        self.assertIn(
+            "Complaint automatically assigned to Agent",
+            self._activity_titles(complaint_id),
+        )
+
+    def test_approved_complaint_without_agents_stays_analyzed(self):
+        for user in self.users.documents:
+            user["status"] = "Inactive"
+
+        complaint_id = self._create_review_complaint()
+
+        result = review_module.approve_review(
+            complaint_id=complaint_id,
+            reviewer=self.reviewer,
+            comment="Approved.",
+        )
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+        self.assertEqual(stored["status"], "Analyzed")
+        self.assertIsNone(stored["assigned_to"])
+        self.assertIsNone(result["assigned_agent"])
+        self.assertIn(
+            "Awaiting manual assignment",
+            self._activity_titles(complaint_id),
+        )
+
+    def test_escalated_review_stays_escalated_and_unassigned(self):
+        complaint_id = self._create_review_complaint()
+
+        review_module.escalate_review(
+            complaint_id=complaint_id,
+            reviewer=self.reviewer,
+            comment="Sensitive case.",
+        )
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+        self.assertEqual(stored["status"], "Escalated")
+        self.assertIsNone(stored["assigned_to"])
+        self.assertNotIn(
+            "Complaint automatically assigned to Agent",
+            self._activity_titles(complaint_id),
+        )
+
+    def test_rejected_review_escalates_without_assignment(self):
+        complaint_id = self._create_review_complaint()
+
+        review_module.reject_review(
+            complaint_id=complaint_id,
+            reviewer=self.reviewer,
+            comment="Analysis unusable.",
+        )
+
+        stored = self.complaints.find_one(
+            {"_id": ObjectId(complaint_id)}
+        )
+        self.assertEqual(stored["status"], "Escalated")
+        self.assertIsNone(stored["assigned_to"])
+
+    def test_completed_review_leaves_reviewer_queue_population(self):
+        complaint_id = self._create_review_complaint()
+
+        review_module.approve_review(
+            complaint_id=complaint_id,
+            reviewer=self.reviewer,
+            comment="Done.",
+        )
+
+        # The reviewer queue query is:
+        # {manual_review_required: True, review_status: "Pending"}
+        still_pending = self.complaints.find_one({
+            "_id": ObjectId(complaint_id),
+            "manual_review_required": True,
+            "review_status": "Pending",
+        })
+        self.assertIsNone(still_pending)
 
 
 # ============================================================

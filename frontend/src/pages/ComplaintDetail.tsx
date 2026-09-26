@@ -10,6 +10,7 @@ import {
   getComplaintAnalysis,
   getComplaintDetail,
   getComplaintActivity,
+  customerRespond,
   type ComplaintDetailResponse,
   type ComplaintActivityEntry,
 } from "@/api/complaints";
@@ -93,7 +94,6 @@ export function ComplaintDetail() {
     complaints,
     getCustomer,
 
-    setStatus,
     updateComplaint,
     refreshComplaints,
   } = useData();
@@ -186,6 +186,7 @@ export function ComplaintDetail() {
     complaint?.customerId === user.id;
 
   const [reply, setReply] = useState("");
+  const [customerReply, setCustomerReply] = useState("");
 
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolution, setResolution] = useState("");
@@ -747,91 +748,29 @@ export function ComplaintDetail() {
 
   /*
    * --------------------------------------------------------
-   * Activity
+   * Timeline
    *
-   * Add system events that correspond to the analysis
-   * already performed by the backend.
+   * The timeline is ONLY the persistent complaint_activity
+   * records returned by the backend. Nothing is fabricated
+   * on the frontend — if the activity API is unavailable,
+   * the timeline is empty rather than invented.
    * --------------------------------------------------------
    */
 
-  const activityEvents = useMemo(() => {
-    const existingEvents = complaint.timeline ?? [];
-
-    const existingTypes = new Set(
-      existingEvents.map((event) => event.type),
-    );
-
-    const generatedEvents = [];
-
-    if (
-      complaint.status !== "New" &&
-      !existingTypes.has("analyzed")
-    ) {
-      generatedEvents.push({
-        id: `${complaint.id}-analysis`,
-        timestamp: complaint.updatedAt,
-        type: "analyzed" as const,
-        title: "Complaint analyzed",
-        description:
-          "SupportNova generated complaint intelligence and workflow recommendations.",
-        actor: "SupportNova",
-        actorRole: "System" as const,
-      });
-    }
-
-    if (
-      complaint.validation !== "Pending" &&
-      !existingTypes.has("validated")
-    ) {
-      generatedEvents.push({
-        id: `${complaint.id}-validation`,
-        timestamp: complaint.updatedAt,
-        type: "validated" as const,
-        title: "Ground-truth validation",
-        description:
-          complaint.validation === "Match"
-            ? "Validation completed successfully."
-            : complaint.validation ===
-                "Manual Review Required"
-              ? "Manual review is required."
-              : "Validation completed with a mismatch.",
-        actor: "SupportNova",
-        actorRole: "System" as const,
-      });
-    }
-
-    if (
-      complaint.department &&
-      complaint.department !== "Unassigned" &&
-      !existingTypes.has("routed")
-    ) {
-      generatedEvents.push({
-        id: `${complaint.id}-routing`,
-        timestamp: complaint.updatedAt,
-        type: "routed" as const,
-        title: "Department routing",
-        description: `Complaint routed to ${complaint.department}.`,
-        actor: "SupportNova",
-        actorRole: "System" as const,
-      });
-    }
-
-    return [
-      ...existingEvents,
-      ...generatedEvents,
-    ].sort(
-      (a, b) =>
-        +new Date(b.timestamp) -
-        +new Date(a.timestamp),
-    );
-  }, [
-    complaint.id,
-    complaint.timeline,
-    complaint.status,
-    complaint.validation,
-    complaint.department,
-    complaint.updatedAt,
-  ]);
+  const timelineEvents = useMemo(
+    () =>
+      (backendActivity ?? []).map((entry) => ({
+        id: entry.id,
+        timestamp: entry.timestamp,
+        type: entry.type as TimelineEvent["type"],
+        title: entry.title,
+        description: entry.description,
+        actor: entry.actor,
+        actorRole:
+          entry.actorRole as TimelineEvent["actorRole"],
+      })),
+    [backendActivity],
+  );
 
   return (
     <div>
@@ -1202,17 +1141,132 @@ export function ComplaintDetail() {
           </section>
 
           {/* ------------------------------------------------ */}
-          {/* Resolution */}
+          {/* Awaiting Customer — the owner answers the       */}
+          {/* agent's persisted customer-facing request.      */}
           {/* ------------------------------------------------ */}
 
-          {complaint.resolution && (
+          {isOwner &&
+            (detail?.status ?? complaint.status) ===
+              "Awaiting Customer" && (
+              <section className="panel border-warning/40 p-4">
+                <h2 className="text-[13px] font-semibold text-ink">
+                  Support needs your input
+                </h2>
+
+                {detail?.customer_facing_request && (
+                  <p className="mt-2 whitespace-pre-wrap rounded-md border border-line bg-surface-muted px-3 py-2 text-[13px] text-ink-secondary">
+                    {detail.customer_facing_request}
+                  </p>
+                )}
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+
+                    const text = customerReply.trim();
+                    if (!text) return;
+
+                    void runAgentAction(
+                      "Respond",
+                      () =>
+                        customerRespond(
+                          complaint.id,
+                          text,
+                        ),
+                    ).then((ok) => {
+                      if (ok) {
+                        setCustomerReply("");
+                      }
+                    });
+                  }}
+                  className="mt-3"
+                >
+                  <Textarea
+                    label="Your response"
+                    value={customerReply}
+                    onChange={(e) =>
+                      setCustomerReply(e.target.value)
+                    }
+                    rows={4}
+                    placeholder="Provide the requested information…"
+                    hint="Your response is added to the complaint and support continues working on it."
+                  />
+
+                  {actionError && (
+                    <p className="mt-2 rounded-md border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">
+                      {actionError}
+                    </p>
+                  )}
+
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={
+                        !customerReply.trim() ||
+                        Boolean(actionLoading)
+                      }
+                    >
+                      {actionLoading === "Respond"
+                        ? "Sending…"
+                        : "Send response"}
+                    </Button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+          {/* ------------------------------------------------ */}
+          {/* Customer responses already on record            */}
+          {/* ------------------------------------------------ */}
+
+          {(detail?.customer_responses?.length ?? 0) >
+            0 && (
+            <section className="panel p-4">
+              <h2 className="text-[13px] font-semibold text-ink">
+                {isOwner
+                  ? "Your responses"
+                  : "Customer responses"}
+              </h2>
+
+              <ul className="mt-2 space-y-2">
+                {detail?.customer_responses?.map(
+                  (entry, index) => (
+                    <li
+                      key={`${entry.created_at ?? index}`}
+                      className="rounded-md border border-line px-3 py-2 text-[13px] text-ink-secondary"
+                    >
+                      <p className="whitespace-pre-wrap">
+                        {entry.message}
+                      </p>
+                      {entry.created_at && (
+                        <p className="mt-1 text-[11px] text-ink-muted">
+                          {formatDateTime(
+                            entry.created_at,
+                          )}
+                        </p>
+                      )}
+                    </li>
+                  ),
+                )}
+              </ul>
+            </section>
+          )}
+
+          {/* ------------------------------------------------ */}
+          {/* Resolution (persisted by the backend)           */}
+          {/* ------------------------------------------------ */}
+
+          {(detail?.resolution_comment ||
+            complaint.resolution) && (
             <section className="panel p-4">
               <h2 className="text-[13px] font-semibold text-success">
                 Resolution
               </h2>
 
-              <p className="mt-2 text-[13px] text-ink-secondary">
-                {complaint.resolution}
+              <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">
+                {detail?.resolution_comment ??
+                  complaint.resolution}
               </p>
             </section>
           )}
@@ -1234,27 +1288,13 @@ export function ComplaintDetail() {
               a fallback when the activity API is
               unavailable.
             */}
-            <Timeline
-              events={
-                backendActivity !== null
-                  ? backendActivity.map((entry) => ({
-                      id: entry.id,
-                      timestamp: entry.timestamp,
-                      type: entry.type as TimelineEvent["type"],
-                      title: entry.title,
-                      description: entry.description,
-                      actor: entry.actor,
-                      actorRole:
-                        entry.actorRole as TimelineEvent["actorRole"],
-                    }))
-                  : isStaff
-                    ? activityEvents
-                    : activityEvents.filter(
-                        (event) =>
-                          event.type !== "note",
-                      )
-              }
-            />
+            {backendActivity === null && (
+              <p className="mb-2 rounded-md border border-line bg-surface-muted px-2.5 py-1.5 text-[12px] text-ink-muted">
+                The activity history could not be loaded.
+              </p>
+            )}
+
+            <Timeline events={timelineEvents} />
 
             {/*
               Comment form is Agent-only: the agent comment
@@ -1626,42 +1666,27 @@ export function ComplaintDetail() {
               onClick={() => {
                 const text = resolution.trim();
 
-                if (isAgent) {
-                  /*
-                   * Resolve through the real backend
-                   * endpoint; only close the modal after
-                   * the backend confirms.
-                   */
-                  void runAgentAction(
-                    "Resolve",
-                    () =>
-                      agentResolve(
-                        complaint.id,
-                        text,
-                      ),
-                  ).then((ok) => {
-                    if (ok) {
-                      setStatus(
-                        complaint.id,
-                        "Resolved",
-                        text,
-                      );
-                      setResolveOpen(false);
-                      setResolution("");
-                    }
-                  });
-
-                  return;
-                }
-
-                setStatus(
-                  complaint.id,
-                  "Resolved",
-                  text,
-                );
-
-                setResolveOpen(false);
-                setResolution("");
+                /*
+                 * Resolve through the real backend
+                 * endpoint only. The backend persists the
+                 * resolution, records the activity, and
+                 * finalizes the complaint to Closed. The
+                 * refreshed state comes back from the
+                 * database — no local status mutation.
+                 */
+                void runAgentAction(
+                  "Resolve",
+                  () =>
+                    agentResolve(
+                      complaint.id,
+                      text,
+                    ),
+                ).then((ok) => {
+                  if (ok) {
+                    setResolveOpen(false);
+                    setResolution("");
+                  }
+                });
               }}
             >
               {actionLoading === "Resolve"

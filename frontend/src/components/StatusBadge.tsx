@@ -11,6 +11,7 @@ const styles: Record<ComplaintStatus, string> = {
   Resolved: "text-success bg-success-subtle border-success-muted",
   Closed: "text-ink-muted bg-canvas-subtle border-line",
   Reopened: "text-warning bg-warning-subtle border-warning-muted",
+  "Manual Review": "text-warning bg-warning-subtle border-warning-muted",
 };
 
 export function StatusBadge({ status }: { status: ComplaintStatus }) {

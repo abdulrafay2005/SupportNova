@@ -265,9 +265,6 @@ function mapBackendComplaint(
     item.assigned_department ??
     "Unassigned";
 
-  const customerId =
-    item.customer_id ?? "unknown";
-
   const escalated =
     status === "Escalated" ||
     item.manual_review_required === true;
@@ -600,20 +597,15 @@ export function DataProvider({
           result.sentiment?.label,
         );
 
-      let status: ComplaintStatus =
-        "Analyzed";
-
-      if (escalation?.required) {
-        status = "Escalated";
-      }
-
-      if (
-        result.follow_up?.required ||
-        result.clarification_questions
-          ?.length
-      ) {
-        status = "Awaiting Customer";
-      }
+      /*
+       * The backend returns the PERSISTED workflow status
+       * after routing (Manual Review / Escalated /
+       * Assigned / Analyzed). Never guess it locally —
+       * the database is the source of truth.
+       */
+      const status: ComplaintStatus = mapStatus(
+        result.workflow?.status,
+      );
 
       const now =
         new Date().toISOString();
@@ -889,9 +881,16 @@ export function DataProvider({
         ],
       );
 
+      /*
+       * Re-sync the list from the backend so the local
+       * entry is replaced with the persisted record
+       * (status, department, assignment).
+       */
+      void refreshComplaints();
+
       return created;
     },
-    [user, log],
+    [user, log, refreshComplaints],
   );
 
   /* =======================================================

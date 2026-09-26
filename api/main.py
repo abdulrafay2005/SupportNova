@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
 
-from api.workflow import build_workflow_fields
+from api.workflow import build_workflow_fields, COMPLAINT_STATUSES
 from api.audit import create_audit_log
 from api.assignment import assign_complaint, auto_assign_complaint
 from api.workflow_validation import validate_workflow
@@ -61,6 +61,7 @@ ComplaintCreate,
     AgentCommentRequest,
     AgentResolveRequest,
     AgentEscalateRequest,
+    CustomerRespondRequest,
     UserStatusRequest,
 )
 
@@ -101,6 +102,7 @@ from api.agent import (
     resolve_complaint,
     escalate_complaint,
     add_agent_comment,
+    customer_respond,
 )
 
 # ============================================================
@@ -639,6 +641,25 @@ def create_complaint(
         )
     })
 
+    # --------------------------------------------------------
+    # Attach the PERSISTED workflow state to the response so
+    # the frontend never has to guess the routing outcome
+    # (Manual Review / Escalated / Assigned / Analyzed).
+    # Internal fields (assigned agent id, reviewer state
+    # detail) are not exposed to the customer here.
+    # --------------------------------------------------------
+    stored = complaints_collection.find_one(
+        {"_id": result.inserted_id}
+    ) or {}
+
+    analysis["workflow"] = {
+        "complaint_id": complaint_id,
+        "status": stored.get("status"),
+        "assigned_department": stored.get(
+            "assigned_department"
+        ),
+    }
+
     return analysis
 
 
@@ -688,7 +709,7 @@ def get_complaints(current_user=Depends(get_current_user)):
         "created_at",
         -1
     ):
-        complaints.append({
+        entry = {
             "id": str(complaint["_id"]),
             "title": complaint["title"],
             "description": complaint["description"],
@@ -709,25 +730,8 @@ def get_complaints(current_user=Depends(get_current_user)):
                 "New"
             ),
 
-            "assigned_to": complaint.get(
-                "assigned_to"
-            ),
-
             "assigned_department": complaint.get(
                 "assigned_department"
-            ),
-
-            "manual_review_required": complaint.get(
-                "manual_review_required",
-                False
-            ),
-
-            "review_status": complaint.get(
-                "review_status"
-            ),
-
-            "reviewer_id": complaint.get(
-                "reviewer_id"
             ),
 
             "created_at": complaint[
@@ -745,7 +749,27 @@ def get_complaints(current_user=Depends(get_current_user)):
             "closed_at": complaint.get(
                 "closed_at"
             ),
-        })
+        }
+
+        # Internal workflow fields are staff-only. Customers
+        # already only receive their own complaints; they do
+        # not receive assignment or review internals.
+        if role != "Customer":
+            entry["assigned_to"] = complaint.get(
+                "assigned_to"
+            )
+            entry["manual_review_required"] = complaint.get(
+                "manual_review_required",
+                False
+            )
+            entry["review_status"] = complaint.get(
+                "review_status"
+            )
+            entry["reviewer_id"] = complaint.get(
+                "reviewer_id"
+            )
+
+        complaints.append(entry)
 
     return complaints
 
@@ -887,6 +911,18 @@ def get_complaint(
         "resolution_comment": complaint.get(
             "resolution_comment"
         ),
+
+        # Customer responses are customer-safe: they were
+        # written by the complaint owner.
+        "customer_responses": [
+            {
+                "message": entry.get("message"),
+                "created_at": entry.get("created_at"),
+            }
+            for entry in complaint.get(
+                "customer_responses", []
+            )
+        ],
 
         "created_at": complaint.get(
             "created_at"
@@ -1239,6 +1275,18 @@ def update_complaint(
     update_fields = {}
 
     if payload.status is not None:
+        # One source of truth for status values: the
+        # canonical lifecycle set in api.workflow.
+        if payload.status not in COMPLAINT_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid status '{payload.status}'. "
+                    f"Allowed: "
+                    f"{', '.join(sorted(COMPLAINT_STATUSES))}."
+                )
+            )
+
         update_fields["status"] = payload.status
 
     if payload.assigned_to is not None:
@@ -1252,7 +1300,9 @@ def update_complaint(
     if payload.priority is not None:
         update_fields["priority"] = payload.priority
 
-    now = datetime.now(timezone.utc).isoformat()
+    # Timestamps are stored as datetime objects, matching
+    # every other write path in the workflow.
+    now = datetime.now(timezone.utc)
 
     update_fields["updated_at"] = now
 
@@ -1733,6 +1783,25 @@ def escalate_agent_complaint(
         complaint_id=complaint_id,
         agent=current_user,
         comment=request.comment
+    )
+
+
+# ============================================================
+# CUSTOMER RESPONSE
+# CUSTOMER ONLY — ownership + Awaiting Customer state are
+# enforced in customer_respond().
+# ============================================================
+
+@app.post("/api/complaints/{complaint_id}/respond")
+def respond_to_complaint(
+    complaint_id: str,
+    request: CustomerRespondRequest,
+    current_user=Depends(require_roles("Customer"))
+):
+    return customer_respond(
+        complaint_id=complaint_id,
+        customer=current_user,
+        message=request.message
     )
 
 

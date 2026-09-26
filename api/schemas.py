@@ -108,5 +108,17 @@ class AgentEscalateRequest(BaseModel):
     comment: str
 
 
+class CustomerRespondRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=10_000)
+
+    @field_validator("message")
+    @classmethod
+    def reject_blank_message(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+
 class UserStatusRequest(BaseModel):
     status: str

@@ -79,6 +79,17 @@ export interface CreateComplaintResponse {
   agent_guidance: string;
 
   clarification_questions: string[];
+
+  /**
+   * PERSISTED workflow state after backend routing
+   * (Manual Review / Escalated / Assigned / Analyzed).
+   * The frontend must use this instead of guessing.
+   */
+  workflow?: {
+    complaint_id: string;
+    status: string;
+    assigned_department?: string | null;
+  };
 }
 
 /**
@@ -131,6 +142,10 @@ export interface ComplaintDetailResponse {
   assigned_department?: string | null;
   customer_facing_request?: string | null;
   resolution_comment?: string | null;
+  customer_responses?: Array<{
+    message: string;
+    created_at?: string;
+  }>;
   created_at?: string;
   updated_at?: string | null;
   resolved_at?: string | null;
@@ -181,6 +196,25 @@ export async function getComplaintActivity(complaintId: string) {
   const response = await api.get<ComplaintActivityEntry[]>(
     `/api/complaints/${complaintId}/activity`,
   );
+
+  return response.data;
+}
+
+/**
+ * Customer answers the agent's Awaiting Customer request
+ * (POST /api/complaints/{id}/respond). The backend enforces
+ * ownership and the Awaiting Customer state, persists the
+ * message, and returns the complaint to In Progress.
+ */
+export async function customerRespond(
+  complaintId: string,
+  message: string,
+) {
+  const response = await api.post<{
+    message: string;
+    complaint_id: string;
+    status: string;
+  }>(`/api/complaints/${complaintId}/respond`, { message });
 
   return response.data;
 }

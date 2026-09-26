@@ -11,6 +11,7 @@ from api.database import (
 )
 from api.audit import create_audit_log
 from api.activity import create_complaint_activity
+from api.assignment import auto_assign_complaint
 from ml.genai import generate_ai_fields, merge_ai_result, openai_enabled
 
 # ============================================================
@@ -183,8 +184,8 @@ def _complete_review(
     create_complaint_activity(
         complaint_id=complaint_id,
         activity_type=(
-            "assigned" if action == "Reassigned"
-            else "escalated" if action == "Escalated"
+            "assigned" if action == "Reassign"
+            else "escalated" if action in {"Escalate", "Reject"}
             else "status"
         ),
         title=f"Reviewer: {action}",
@@ -197,11 +198,45 @@ def _complete_review(
         },
     )
 
+    # --------------------------------------------------------
+    # POST-REVIEW ROUTING
+    #
+    # When the reviewer's decision returns the complaint to
+    # normal handling ("Analyzed"), it must actually enter the
+    # agent workflow: route it through the existing automatic
+    # assignment system. Escalated outcomes stay escalated
+    # (management workflow) and Reassign already carries an
+    # explicit agent — neither is auto-assigned.
+    # --------------------------------------------------------
+    final_status = next_status
+    assigned_agent = None
+
+    if next_status == "Analyzed":
+        updated_complaint = complaints_collection.find_one(
+            {"_id": complaint_object_id}
+        ) or {}
+
+        agent = auto_assign_complaint(
+            complaint_object_id=complaint_object_id,
+            complaint_id=complaint_id,
+            department=updated_complaint.get(
+                "assigned_department"
+            ),
+        )
+
+        if agent:
+            final_status = "Assigned"
+            assigned_agent = {
+                "id": str(agent["_id"]),
+                "name": agent.get("name"),
+            }
+
     return {
         "message": f"Review action '{action}' completed successfully",
         "complaint_id": complaint_id,
         "action": action,
-        "status": next_status,
+        "status": final_status,
+        "assigned_agent": assigned_agent,
         "review_status": "Completed",
         "reviewer_id": reviewer["id"]
     }
