@@ -51,7 +51,6 @@ import { useData } from "@/context/DataContext";
 import { customerNextStep } from "@/utils/classify";
 import {
   COMPLAINT_STATUSES,
-  PRIORITIES,
   type ComplaintStatus,
   type Customer,
   type DocumentStatus,
@@ -73,8 +72,6 @@ export function ComplaintDetail() {
     getCustomer,
     addComment,
     setStatus,
-    setPriority,
-    assignTo,
     updateComplaint,
     refreshComplaints,
   } = useData();
@@ -582,12 +579,6 @@ export function ComplaintDetail() {
       />
     );
   }
-
-  const agents = users.filter(
-    (u) =>
-      u.role === "Agent" ||
-      u.role === "Admin",
-  );
 
   const backTo = !user
     ? "/"
@@ -1409,6 +1400,16 @@ export function ComplaintDetail() {
                   )}
                 </dl>
 
+                {/*
+                  Workflow controls are shown only to the
+                  Agent role: every control here maps to a
+                  real backend endpoint that enforces the
+                  assigned-agent check. Reviewer actions
+                  live in Manual Review; Manager/Admin
+                  intervention on escalated complaints is
+                  enforced by the backend, not this panel.
+                */}
+                {isAgent && (
                 <div className="mt-4 space-y-3 border-t border-line pt-3">
                   <Select
                     label="Status"
@@ -1465,57 +1466,6 @@ export function ComplaintDetail() {
                         );
                         return;
                       }
-
-                      setStatus(
-                        complaint.id,
-                        next,
-                      );
-                    }}
-                  />
-
-                  <Select
-                    label="Priority"
-                    value={complaint.priority}
-                    options={PRIORITIES.map(
-                      (priority) => ({
-                        value: priority,
-                        label: priority,
-                      }),
-                    )}
-                    onChange={(e) =>
-                      setPriority(
-                        complaint.id,
-                        e.target
-                          .value as Priority,
-                      )
-                    }
-                  />
-
-                  <Select
-                    label="Assignee"
-                    value={
-                      complaint.assigneeId ?? ""
-                    }
-                    placeholder="Unassigned"
-                    options={agents.map((agent) => ({
-                      value: agent.id,
-                      label: agent.name,
-                    }))}
-                    onChange={(e) => {
-                      const selectedAgent =
-                        agents.find(
-                          (agent) =>
-                            agent.id ===
-                            e.target.value,
-                        );
-
-                      if (selectedAgent) {
-                        assignTo(
-                          complaint.id,
-                          selectedAgent.id,
-                          selectedAgent.name,
-                        );
-                      }
                     }}
                   />
 
@@ -1525,17 +1475,9 @@ export function ComplaintDetail() {
                       size="sm"
                       className="w-full"
                       disabled={Boolean(actionLoading)}
-                      onClick={() => {
-                        if (isAgent) {
-                          setCommentAction("escalate");
-                          return;
-                        }
-
-                        setStatus(
-                          complaint.id,
-                          "Escalated",
-                        );
-                      }}
+                      onClick={() =>
+                        setCommentAction("escalate")
+                      }
                     >
                       {actionLoading === "Escalate"
                         ? "Escalating…"
@@ -1566,6 +1508,7 @@ export function ComplaintDetail() {
                     </p>
                   )}
                 </div>
+                )}
               </section>
             </>
           )}

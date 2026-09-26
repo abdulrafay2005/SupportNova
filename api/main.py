@@ -985,15 +985,43 @@ def update_complaint(
 
     role = current_user["role"]
 
-    if role not in {
-        "Agent",
-        "Reviewer",
-        "Manager",
-        "Admin"
-    }:
+    # --------------------------------------------------------
+    # WORKFLOW AUTHORITY vs VISIBILITY
+    #
+    # Agents and Reviewers must use their dedicated workflow
+    # endpoints (/api/agent/*, /api/review/*), which enforce
+    # assignment / pending-review state and write audit logs.
+    #
+    # Managers and Admins may intervene through this generic
+    # endpoint only after a complaint has been escalated into
+    # the management workflow. Assignment changes go through
+    # /api/complaints/{id}/assign or the management reassign
+    # endpoint, which validate the target agent.
+    # --------------------------------------------------------
+
+    if role in {"Agent", "Reviewer"}:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Use the dedicated agent/review workflow "
+                "endpoints to act on complaints"
+            )
+        )
+
+    if role not in {"Manager", "Admin"}:
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to update complaints"
+        )
+
+    if complaint.get("status") != "Escalated":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Management can only update complaints that "
+                "have been escalated. Use the assignment or "
+                "management reassign endpoints for routing."
+            )
         )
 
     update_fields = {}
@@ -1082,6 +1110,22 @@ def update_complaint(
             actor=actor,
             actor_role=actor_role,
         )
+
+    create_audit_log(
+        actor_id=current_user["id"],
+        actor_role=actor_role,
+        action="Management: Escalated complaint updated",
+        entity_type="complaint",
+        entity_id=complaint_id,
+        details={
+            "previous_status": complaint.get("status"),
+            "updated_fields": {
+                key: value
+                for key, value in update_fields.items()
+                if key != "updated_at"
+            }
+        }
+    )
 
     updated = complaints_collection.find_one(
         {"_id": ObjectId(complaint_id)}
