@@ -1,9 +1,11 @@
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Query
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
@@ -37,7 +39,8 @@ from api.database import (
     analyses_collection,
     users_collection,
     knowledge_documents_collection,
-    complaint_activity_collection
+    complaint_activity_collection,
+    ensure_indexes
 )
 from api.activity import create_complaint_activity
 
@@ -90,6 +93,7 @@ from api.review import (
     reject_review,
     add_review_comment,
     regenerate_review_response,
+    get_review_statistics,
 )
 
 # ============================================================
@@ -103,6 +107,7 @@ from api.agent import (
     escalate_complaint,
     add_agent_comment,
     customer_respond,
+    get_agent_statistics,
 )
 
 # ============================================================
@@ -121,6 +126,28 @@ from api.management import (
     update_user_status,
     get_user_overview,
     get_audit_logs,
+    get_audit_summary,
+    get_admin_statistics,
+)
+
+# ============================================================
+# ANALYTICS / REPORTS / SLA (read-only aggregations)
+# ============================================================
+
+from api.reports import (
+    REPORT_TYPES,
+    UnknownReportType,
+    generate_report,
+    list_reports,
+    render_report_csv,
+)
+from api.sla import build_sla_fields, get_sla_status
+
+from api.analytics import (
+    get_complaint_trends,
+    get_department_performance,
+    get_resolution_statistics,
+    get_sentiment_distribution,
 )
 
 # ============================================================
@@ -138,9 +165,24 @@ from ml.knowledge_base.processor import DocumentProcessingError
 # APPLICATION
 # ============================================================
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Create the analytics/reporting indexes once at startup.
+
+    `ensure_indexes()` never raises, so an unreachable database
+    cannot stop the API from starting.
+    """
+
+    ensure_indexes()
+
+    yield
+
+
 app = FastAPI(
     title="SupportNova API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 
@@ -486,12 +528,12 @@ def create_complaint(
     # MongoDB
     # ========================================================
 
-    analysis = analyze_complaint(
+    rule_result = analyze_complaint(
         rule_engine_input
     )
 
     analysis = analyze_with_ai(
-        analysis
+        rule_result
     )
 
     validation = validate_workflow(analysis)
@@ -501,9 +543,48 @@ def create_complaint(
         validation["manual_review_required"]
     )
 
+    # --------------------------------------------------------
+    # SLA / PRIORITY PERSISTENCE (additive)
+    #
+    # The rule engine already derives a real priority and SLA
+    # window, but `create_intelligence()` does not carry them
+    # into the AI result, so they were previously lost. They are
+    # attached here, AFTER validation, exactly like `validation`
+    # and `manual_review_required` above, so neither the rule
+    # engine, the AI layer nor schema validation is affected.
+    #
+    # Nothing is invented: when the rule engine produces no SLA
+    # window, no SLA field is written and the complaint is
+    # reported as having no target.
+    # --------------------------------------------------------
+
+    rule_priority = rule_result.get("priority")
+    rule_sla_hours = rule_result.get("sla_hours")
+
+    if rule_priority:
+        analysis["priority"] = rule_priority
+
+    if rule_sla_hours:
+        analysis["sla_hours"] = rule_sla_hours
+
     workflow_fields = build_workflow_fields(
         analysis=analysis,
         customer_id=current_user["id"]
+    )
+
+    persisted_fields = dict(workflow_fields)
+
+    if rule_priority:
+        persisted_fields["priority"] = rule_priority
+
+    persisted_fields.update(
+        build_sla_fields(
+            created_at=workflow_fields.get(
+                "created_at",
+                complaint_data["created_at"],
+            ),
+            sla_hours=rule_sla_hours,
+        )
     )
 
     complaints_collection.update_one(
@@ -511,7 +592,7 @@ def create_complaint(
             "_id": result.inserted_id
         },
         {
-            "$set": workflow_fields
+            "$set": persisted_fields
         }
     )
 
@@ -1451,6 +1532,17 @@ def assign_complaint_endpoint(
         actor=current_user
     )
 
+@app.get("/api/agent/statistics")
+def agent_statistics(
+    current_user=Depends(
+        require_roles("Agent")
+    )
+):
+    """Workload statistics for the signed-in agent only."""
+
+    return get_agent_statistics(current_user)
+
+
 @app.get("/api/agent/queue")
 def get_agent_queue(
     current_user=Depends(
@@ -1509,6 +1601,26 @@ def get_agent_queue(
 
     return complaints
 
+
+
+@app.get("/api/review/statistics")
+def review_statistics(
+    current_user=Depends(
+        require_roles("Reviewer", "Manager", "Admin")
+    )
+):
+    """
+    Manual-review queue and outcome statistics.
+
+    Reviewers see their own activity in `my_statistics`;
+    managers and admins get the same aggregate view without it.
+    """
+
+    return get_review_statistics(
+        current_user
+        if current_user.get("role") == "Reviewer"
+        else None
+    )
 
 
 @app.get("/api/review/queue")
@@ -1870,14 +1982,35 @@ def management_complaints(
     status: str | None = None,
     department: str | None = None,
     assigned_to: str | None = None,
+    category: str | None = None,
+    priority: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    page: int = 1,
+    limit: int = 25,
     current_user=Depends(
         require_roles("Manager", "Admin")
     )
 ):
+    """
+    Filtered, paginated complaint list for managers and admins.
+
+    Filtering happens in MongoDB, not in the browser, so the
+    counts returned describe the whole matching set.
+    """
+
     return get_management_complaints(
         status=status,
         department=department,
-        assigned_to=assigned_to
+        assigned_to=assigned_to,
+        category=category,
+        priority=priority,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        limit=limit,
     )
 
 
@@ -1941,7 +2074,157 @@ def management_reports(
         require_roles("Manager", "Admin")
     )
 ):
-    return get_report_data()
+    """
+    Report catalogue plus the headline operational figures the
+    reports are built from.
+    """
+
+    catalogue = list_reports()
+
+    return {
+        **get_report_data(),
+        "reports": catalogue["reports"],
+        "export_formats_unavailable": catalogue[
+            "export_formats_unavailable"
+        ],
+    }
+
+
+@app.get("/api/management/reports/{report_type}")
+def management_report(
+    report_type: str,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    department: str | None = None,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    """Generate one SRS report from stored data."""
+
+    try:
+        return generate_report(
+            report_type,
+            date_from=date_from,
+            date_to=date_to,
+            department=department,
+        )
+    except UnknownReportType:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown report type '{report_type}'. "
+                f"Available: {', '.join(sorted(REPORT_TYPES))}"
+            ),
+        )
+
+
+@app.get("/api/management/reports/{report_type}/export")
+def management_report_export(
+    report_type: str,
+    format: str = "csv",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    department: str | None = None,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    """
+    Export a generated report.
+
+    Only CSV is produced: the backend has no PDF or spreadsheet
+    dependency, and a fabricated file would not be an export.
+    """
+
+    requested = (format or "csv").lower()
+
+    if requested != "csv":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Export format '{requested}' is not available. "
+                "The backend has no PDF or spreadsheet library "
+                "installed, so only CSV export is supported."
+            ),
+        )
+
+    try:
+        report = generate_report(
+            report_type,
+            date_from=date_from,
+            date_to=date_to,
+            department=department,
+        )
+    except UnknownReportType:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Unknown report type '{report_type}'. "
+                f"Available: {', '.join(sorted(REPORT_TYPES))}"
+            ),
+        )
+
+    filename = (
+        f"supportnova-{report_type}-"
+        f"{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+    )
+
+    return StreamingResponse(
+        iter([render_report_csv(report)]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"'
+            )
+        },
+    )
+
+
+# ============================================================
+# ANALYTICS
+# Read-only aggregations. No workflow state is changed here.
+# ============================================================
+
+@app.get("/api/management/trends")
+def management_trends(
+    days: int = 30,
+    department: str | None = None,
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_complaint_trends(
+        days=days,
+        department=department
+    )
+
+
+@app.get("/api/management/department-performance")
+def management_department_performance(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_department_performance()
+
+
+@app.get("/api/management/resolution-statistics")
+def management_resolution_statistics(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_resolution_statistics()
+
+
+@app.get("/api/management/sentiment")
+def management_sentiment(
+    current_user=Depends(
+        require_roles("Manager", "Admin")
+    )
+):
+    return get_sentiment_distribution()
 
 
 # ============================================================
@@ -1986,16 +2269,62 @@ def admin_user_overview(
     return get_user_overview()
 
 
-@app.get("/api/admin/audit")
-def admin_audit_logs(
-    limit: int = 100,
+@app.get("/api/admin/statistics")
+def admin_statistics(
     current_user=Depends(
         require_roles("Admin")
     )
 ):
-    return get_audit_logs(
-        limit=limit
+    """System-wide statistics for the administrator home."""
+
+    return get_admin_statistics()
+
+
+@app.get("/api/admin/audit")
+def admin_audit_logs(
+    limit: int = 50,
+    page: int = 1,
+    action: str | None = None,
+    actor_id: str | None = None,
+    actor_role: str | None = None,
+    entity_type: str | None = None,
+    search: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    current_user=Depends(
+        require_roles("Admin")
     )
+):
+    """
+    Paginated audit log with real filters.
+
+    Only fields the audit schema actually stores can be filtered
+    on: actor, actor role, action, entity type and date.
+    """
+
+    return get_audit_logs(
+        limit=limit,
+        page=page,
+        action=action,
+        actor_id=actor_id,
+        actor_role=actor_role,
+        entity_type=entity_type,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
+@app.get("/api/admin/audit/summary")
+def admin_audit_summary(
+    days: int = 30,
+    current_user=Depends(
+        require_roles("Admin")
+    )
+):
+    return get_audit_summary(days=days)
+
+
 # ============================================================
 # KNOWLEDGE BASE
 # ============================================================

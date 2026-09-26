@@ -1,5 +1,4 @@
 import type {
-  AuditLog,
   Complaint,
   ComplaintStatus,
   Customer,
@@ -13,7 +12,6 @@ import type {
   PolicyDocument,
   PolicyRef,
   Priority,
-  ReportDefinition,
   ResolutionPlan,
   RoutingRule,
   TimelineEvent,
@@ -957,36 +955,6 @@ export const documents: PolicyDocument[] = [
   { id: "GEN-SOP-01", title: "Complaint Handling SOP", category: "General Support", version: "1.1", effectiveDate: daysAgo(10, 9, 0), status: "Active", uploadedAt: daysAgo(10, 12, 0), format: "PDF" },
 ];
 
-export const reports: ReportDefinition[] = [
-  { id: "rep-analysis", title: "Complaint analysis", category: "Complaint Analysis", description: "Volume, categories, and products for the selected period." },
-  { id: "rep-dept", title: "Department performance", category: "Department Performance", description: "Open work, escalations, and time-to-resolution by department." },
-  { id: "rep-esc", title: "Escalations", category: "Escalations", description: "Escalation level, reason, and outcome." },
-  { id: "rep-sla", title: "SLA status", category: "SLA Status", description: "Cases past or approaching response and resolution targets." },
-  { id: "rep-policy", title: "Policy usage", category: "Policy Usage", description: "Which policy documents were applied to complaints." },
-  { id: "rep-compliance", title: "Resolution compliance", category: "Resolution Compliance", description: "Required versus prohibited actions recorded on closed cases." },
-  { id: "rep-compare", title: "GenAI / Python comparison", category: "GenAI/Python Comparison", description: "Field-level match and mismatch counts. No accuracy claims." },
-  { id: "rep-review", title: "Manual reviews", category: "Manual Reviews", description: "Cases flagged for reviewer action and their outcomes." },
-];
-
-export const auditLogs: AuditLog[] = [
-  { id: "a1", timestamp: hoursAgo(0.4), user: "Marcus Adeyemi", action: "Updated escalation rule", resource: "R-04", result: "Success", details: "Clarified privacy-register logging." },
-  { id: "a2", timestamp: hoursAgo(0.5), user: "Samir Volkov", action: "Escalated complaint", resource: "SN-000128", result: "Success", details: "Identity check requested." },
-  { id: "a3", timestamp: hoursAgo(0.7), user: "Nora Hayes", action: "Added comment", resource: "SN-000124", result: "Success", details: "Requested packaging confirmation." },
-  { id: "a4", timestamp: hoursAgo(1.1), user: "David Okonkwo", action: "Escalated complaint", resource: "SN-000133", result: "Success", details: "Chilled misdelivery. Duty manager notified." },
-  { id: "a5", timestamp: hoursAgo(1.5), user: "Nora Hayes", action: "Added internal note", resource: "SN-000150", result: "Success", details: "Recommended refund rather than a third replacement." },
-  { id: "a6", timestamp: hoursAgo(2.2), user: "Jordan Ellis", action: "Assigned complaint", resource: "SN-000131", result: "Success", details: "Self-assigned from the technical queue." },
-  { id: "a7", timestamp: hoursAgo(3), user: "Priya Nair", action: "Changed complaint status", resource: "SN-000125", result: "Success", details: "Set to Awaiting Customer." },
-  { id: "a8", timestamp: hoursAgo(4), user: "Marcus Adeyemi", action: "Approved manual review", resource: "SN-000138", result: "Success", details: "Held for order-desk confirmation." },
-  { id: "a9", timestamp: hoursAgo(6), user: "Nora Hayes", action: "Modified classification", resource: "SN-000139", result: "Success", details: "Linked as reopen of SN-000124." },
-  { id: "a10", timestamp: hoursAgo(8), user: "System", action: "Generated response", resource: "SN-000128", result: "Success", details: "Customer-facing containment message stored." },
-  { id: "a11", timestamp: daysAgo(1, 11, 20), user: "Marcus Adeyemi", action: "Reassigned complaint", resource: "SN-000145", result: "Success", details: "Moved to Jordan Ellis." },
-  { id: "a12", timestamp: daysAgo(1, 15, 10), user: "Nora Hayes", action: "Resolved complaint", resource: "SN-000132", result: "Success", details: "Exchange delivered and confirmed." },
-  { id: "a13", timestamp: daysAgo(3, 16, 0), user: "Marcus Adeyemi", action: "Disabled routing rule", resource: "R-09", result: "Success", details: "Promo-code rule paused during campaign." },
-  { id: "a14", timestamp: daysAgo(8, 14, 0), user: "Nora Hayes", action: "Closed complaint", resource: "SN-000136", result: "Success", details: "Warranty replacement confirmed." },
-  { id: "a15", timestamp: hoursAgo(0.3), user: "David Okonkwo", action: "Added comment", resource: "SN-000143", result: "Success", details: "Refund queued pending manager sign-off." },
-  { id: "a16", timestamp: daysAgo(1, 10, 0), user: "Samir Volkov", action: "Changed complaint status", resource: "SN-000149", result: "Failed", details: "Export job could not attach payment-method tokens; retried without PAN data." },
-];
-
 export const notifications: NotificationItem[] = [
   { id: "n1", title: "SN-000128 remains escalated", body: "Unauthorised login attempts — identity check still outstanding.", timestamp: hoursAgo(0.5), read: false, href: "/complaints/SN-000128" },
   { id: "n2", title: "SLA risk on SN-000143", body: "Perishable delivery missed its window. Refund awaiting sign-off.", timestamp: hoursAgo(0.3), read: false, href: "/complaints/SN-000143" },
@@ -1030,43 +998,6 @@ export const kbCategories = [
   "Privacy",
   "General Support",
 ] as const;
-
-export const analyticsDemo = {
-  volume30d: 186,
-  resolved30d: 145,
-  avgResolutionHours: 14.2,
-  escalations30d: 11,
-  manualReviewOpen: 3,
-  mismatchCount: 2,
-  slaRiskCount: 4,
-  repeatComplaints: 6,
-  volumeByDay: [8, 11, 9, 14, 12, 7, 5, 13, 15, 10, 12, 16, 9, 11],
-  categoryCounts: [
-    { label: "Product Quality", value: 42 },
-    { label: "Delivery", value: 38 },
-    { label: "Billing", value: 31 },
-    { label: "Account Access", value: 24 },
-    { label: "Payments", value: 18 },
-    { label: "Technical Issue", value: 16 },
-    { label: "Order Issue", value: 11 },
-    { label: "General Inquiry", value: 6 },
-  ],
-  departmentWorkload: [
-    { department: "Returns", open: 8, pending: 2, escalated: 1, resolved: 14 },
-    { department: "Delivery Operations", open: 6, pending: 1, escalated: 2, resolved: 11 },
-    { department: "Billing", open: 5, pending: 4, escalated: 0, resolved: 16 },
-    { department: "Account Security", open: 3, pending: 1, escalated: 2, resolved: 7 },
-    { department: "Technical Support", open: 3, pending: 0, escalated: 0, resolved: 9 },
-    { department: "Customer Accounts", open: 2, pending: 1, escalated: 0, resolved: 8 },
-    { department: "Product Support", open: 2, pending: 0, escalated: 0, resolved: 6 },
-  ],
-  trends: [
-    { title: "Rising delivery complaints", detail: "Failed-delivery and perishable delay cases are higher in the last 14 days of demo data." },
-    { title: "Increasing billing complaints", detail: "Duplicate captures and holds appear more often around invoice cycles." },
-    { title: "Recurring product issues", detail: "Damaged glassware and ceramics repeat on the same packing path." },
-    { title: "Escalation spikes", detail: "Account-security and perishable-delivery escalations cluster outside business hours." },
-  ],
-};
 
 /** Illustrative examples used on the public site. They show how handling differs; they are not live complaints. */
 export const complexExample: {

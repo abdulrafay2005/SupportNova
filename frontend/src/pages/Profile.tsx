@@ -1,17 +1,47 @@
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { PageHeader } from "@/components/PageHeader";
 import { useAuth } from "@/auth/AuthContext";
 import { useData } from "@/context/DataContext";
+import { getAdminAuditLogs, type AuditLogRow } from "@/api/management";
 import { formatDate, formatRelative } from "@/utils/dates";
 
 export function Profile() {
   const { user } = useAuth();
-  const { complaints, auditLogs } = useData();
+  const { complaints } = useData();
+  const [myLogs, setMyLogs] = useState<AuditLogRow[]>([]);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  /*
+   * Recent actions come from the real audit trail. Only the
+   * Admin role is authorised to read GET /api/admin/audit, so
+   * other roles are told the trail is not exposed to them
+   * rather than being shown invented activity.
+   */
+  const canReadAudit = user?.role === "Admin";
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (!canReadAudit || !userId) return;
+    let active = true;
+
+    getAdminAuditLogs({ actor_id: userId, limit: 6 })
+      .then((data) => {
+        if (active) setMyLogs(data.logs);
+      })
+      .catch(() => {
+        if (active) setLogsError("Unable to load your audit trail.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canReadAudit, userId]);
+
   if (!user) return null;
 
   const assigned = complaints.filter((c) => c.assigneeId === user.id);
   const submitted = complaints.filter((c) => c.customerId === user.id);
-  const mineLogs = auditLogs.filter((l) => l.user === user.name).slice(0, 6);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -63,16 +93,29 @@ export function Profile() {
       {user.role !== "Customer" && (
         <section className="mt-4 panel p-4">
           <h2 className="mb-2 text-[13px] font-semibold text-ink">Recent actions</h2>
-          {mineLogs.length === 0 ? (
+          {!canReadAudit ? (
+            <p className="text-[13px] text-ink-muted">
+              The audit trail is only readable by administrators, so your own
+              recorded actions are not shown here.
+            </p>
+          ) : logsError ? (
+            <p className="text-[13px] text-danger">{logsError}</p>
+          ) : myLogs.length === 0 ? (
             <p className="text-[13px] text-ink-muted">No recorded actions yet.</p>
           ) : (
             <ul className="divide-y divide-line">
-              {mineLogs.map((l) => (
+              {myLogs.map((l) => (
                 <li key={l.id} className="py-2">
                   <p className="text-[13px] text-ink">
-                    {l.action} <span className="font-mono text-[12px] text-ink-muted">{l.resource}</span>
+                    {l.action}{" "}
+                    <span className="font-mono text-[12px] text-ink-muted">
+                      {l.entity_type}
+                      {l.entity_id ? ` · ${l.entity_id}` : ""}
+                    </span>
                   </p>
-                  <p className="text-[12px] text-ink-muted">{formatRelative(l.timestamp)}</p>
+                  <p className="text-[12px] text-ink-muted">
+                    {l.created_at ? formatRelative(l.created_at) : "—"}
+                  </p>
                 </li>
               ))}
             </ul>

@@ -273,16 +273,6 @@ export interface RoutingRule {
   updatedAt: string;
 }
 
-export interface AuditLog {
-  id: string;
-  timestamp: string;
-  user: string;
-  action: string;
-  resource: string;
-  result: "Success" | "Failed";
-  details: string;
-}
-
 export interface NotificationItem {
   id: string;
   title: string;
@@ -315,11 +305,4 @@ export interface PolicyDocument {
   status: DocumentStatus;
   uploadedAt: string;
   format: "PDF" | "DOCX";
-}
-
-export interface ReportDefinition {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
 }

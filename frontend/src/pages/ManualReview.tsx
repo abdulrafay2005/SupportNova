@@ -4,10 +4,13 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Input } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
+import { StatCard } from "@/components/StatCard";
 import { Textarea } from "@/components/Textarea";
 import {
   getReviewQueue,
+  getReviewStatistics,
   reviewAction,
+  type ReviewStatistics,
   type WorkflowComplaint,
 } from "@/api/workflows";
 
@@ -87,11 +90,20 @@ export function ManualReview() {
   const [error, setError] =
     useState<string | null>(null);
 
+  const [statistics, setStatistics] =
+    useState<ReviewStatistics | null>(null);
+
   async function refresh() {
     setLoading(true);
 
     try {
-      setQueue(await getReviewQueue());
+      const [queueItems, stats] = await Promise.all([
+        getReviewQueue(),
+        getReviewStatistics(),
+      ]);
+
+      setQueue(queueItems);
+      setStatistics(stats);
       setError(null);
     } catch (e: unknown) {
       setError(
@@ -368,6 +380,157 @@ export function ManualReview() {
         title="Manual review"
         description="Review complaints requiring human validation before they enter the normal support workflow."
       />
+
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard
+          label="Pending reviews"
+          value={
+            statistics?.pending_reviews ?? queue.length
+          }
+          tone="warning"
+        />
+
+        <StatCard
+          label="Completed reviews"
+          value={statistics?.completed_reviews ?? 0}
+          tone="success"
+          hint={`${
+            statistics?.total_review_actions ?? 0
+          } review actions recorded`}
+        />
+
+        <StatCard
+          label="Validation failures"
+          value={
+            statistics?.validation
+              .validation_failed ?? 0
+          }
+          tone="danger"
+          hint={`${
+            statistics?.validation
+              .analyzed_complaints ?? 0
+          } analyses checked`}
+        />
+
+        <StatCard
+          label="My review actions"
+          value={
+            statistics?.my_statistics?.actions ?? 0
+          }
+          hint={`${
+            statistics?.my_statistics?.approvals ?? 0
+          } approved · ${
+            statistics?.my_statistics?.rejections ?? 0
+          } rejected`}
+        />
+      </div>
+
+      {statistics && (
+        <div className="mb-4 grid gap-3 lg:grid-cols-3">
+          <div className="panel p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Review outcomes
+            </p>
+
+            {statistics.total_review_actions === 0 ? (
+              <p className="text-[12px] text-ink-muted">
+                No review actions recorded yet.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-[12px]">
+                {Object.entries(
+                  statistics.outcome_counts,
+                ).map(([action, count]) => (
+                  <li
+                    className="flex justify-between"
+                    key={action}
+                  >
+                    <span className="text-ink-muted">
+                      {action}
+                    </span>
+                    <span className="tabular font-medium">
+                      {count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="panel p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Validation issues
+            </p>
+
+            {Object.keys(
+              statistics.validation
+                .issue_code_distribution,
+            ).length === 0 ? (
+              <p className="text-[12px] text-ink-muted">
+                No validation issues recorded.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-[12px]">
+                {Object.entries(
+                  statistics.validation
+                    .issue_code_distribution,
+                ).map(([code, count]) => (
+                  <li
+                    className="flex justify-between"
+                    key={code}
+                  >
+                    <span className="text-ink-muted">
+                      {code}
+                    </span>
+                    <span className="tabular font-medium">
+                      {count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {!statistics.validation
+              .field_level_comparison_available && (
+              <p className="mt-2 text-[11px] text-ink-faint">
+                Field-level GenAI vs Python comparison is
+                not stored by the analysis pipeline.
+              </p>
+            )}
+          </div>
+
+          <div className="panel p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Reviewer workload
+            </p>
+
+            {statistics.reviewer_workload.length === 0 ? (
+              <p className="text-[12px] text-ink-muted">
+                No reviewer activity recorded yet.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-[12px]">
+                {statistics.reviewer_workload
+                  .slice(0, 6)
+                  .map((row) => (
+                    <li
+                      className="flex justify-between"
+                      key={row.reviewer_id}
+                    >
+                      <span className="truncate text-ink-muted">
+                        {row.reviewer_name ??
+                          row.reviewer_id}
+                      </span>
+                      <span className="tabular font-medium">
+                        {row.actions}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="mb-3 rounded border border-danger/30 p-3 text-[13px] text-danger">

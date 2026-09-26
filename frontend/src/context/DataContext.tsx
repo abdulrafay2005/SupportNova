@@ -16,18 +16,15 @@ import {
 
 import {
   articles as seedArticles,
-  auditLogs as seedLogs,
   customers as seedCustomers,
   documents,
   notifications as seedNotes,
-  reports,
   rules as seedRules,
 } from "@/data/mockData";
 
 import { useAuth } from "@/auth/AuthContext";
 
 import type {
-  AuditLog,
   Complaint,
   ComplaintDraft,
   ComplaintStatus,
@@ -37,7 +34,6 @@ import type {
   NotificationItem,
   PolicyDocument,
   Priority,
-  ReportDefinition,
   RoutingRule,
   Sentiment,
   TimelineEvent,
@@ -50,8 +46,6 @@ interface DataContextValue {
   articles: KnowledgeArticle[];
   rules: RoutingRule[];
   documents: PolicyDocument[];
-  reports: ReportDefinition[];
-  auditLogs: AuditLog[];
   notifications: NotificationItem[];
 
   loadingComplaints: boolean;
@@ -430,9 +424,6 @@ export function DataProvider({
   const [rules, setRules] =
     useState<RoutingRule[]>(seedRules);
 
-  const [auditLogs, setAuditLogs] =
-    useState<AuditLog[]>(seedLogs);
-
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(seedNotes);
 
@@ -516,45 +507,6 @@ export function DataProvider({
       return getComplaintAnalysis(id);
     },
     [],
-  );
-
-  /* =======================================================
-     LOCAL AUDIT
-     ======================================================= */
-
-  const log = useCallback(
-    (
-      action: string,
-      resource: string,
-      details: string,
-      result: AuditLog["result"] = "Success",
-    ) => {
-      const entry: AuditLog = {
-        id: `a-${Date.now()}`,
-
-        timestamp:
-          new Date().toISOString(),
-
-        user:
-          user?.name ?? "System",
-
-        action,
-
-        resource,
-
-        result,
-
-        details,
-      };
-
-      setAuditLogs(
-        (previous) => [
-          entry,
-          ...previous,
-        ],
-      );
-    },
-    [user],
   );
 
   /* =======================================================
@@ -851,12 +803,6 @@ export function DataProvider({
         ],
       );
 
-      log(
-        "Created complaint",
-        created.id,
-        created.subject,
-      );
-
       setNotifications(
         (previous) => [
           {
@@ -890,7 +836,7 @@ export function DataProvider({
 
       return created;
     },
-    [user, log, refreshComplaints],
+    [user, refreshComplaints],
   );
 
   /* =======================================================
@@ -976,15 +922,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        internal
-          ? "Added internal note"
-          : "Added comment",
-        id,
-        body,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1041,13 +980,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        "Changed complaint status",
-        id,
-        `Status set to ${status}`,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1076,13 +1010,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        "Changed priority",
-        id,
-        `Priority set to ${priority}`,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1112,13 +1041,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        "Assigned complaint",
-        id,
-        `Assigned to ${assigneeName}`,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1155,15 +1079,8 @@ export function DataProvider({
           ),
       );
 
-      log(
-        current.status === "Active"
-          ? "Disabled routing rule"
-          : "Enabled routing rule",
-        id,
-        current.subcategory,
-      );
     },
-    [rules, log],
+    [rules],
   );
 
   /* =======================================================
@@ -1228,10 +1145,6 @@ export function DataProvider({
 
       documents,
 
-      reports,
-
-      auditLogs,
-
       notifications,
 
       loadingComplaints,
@@ -1271,8 +1184,6 @@ export function DataProvider({
       articles,
       rules,
       documents,
-      reports,
-      auditLogs,
       notifications,
       loadingComplaints,
       complaintError,

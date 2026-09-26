@@ -3,9 +3,13 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import HTTPException
 
-from api.database import complaints_collection
+from api.database import (
+    complaints_collection,
+    complaint_activity_collection,
+)
 from api.audit import create_audit_log
 from api.activity import create_complaint_activity
+from api.analytics import as_utc, build_distribution
 
 _ACTIVITY_TYPE_BY_STATUS = {
     "In Progress": "status",
@@ -488,4 +492,282 @@ def customer_respond(
         "message": "Response submitted successfully",
         "complaint_id": complaint_id,
         "status": "In Progress"
+    }
+
+
+# ============================================================
+# AGENT STATISTICS
+#
+# Read-only aggregations over the agent's own complaints.
+#
+#   complaints.assigned_to / status / created_at / resolved_at
+#   complaint_activity      persisted transition timeline
+#
+# Handling time is measured from the persisted "In Progress"
+# transition recorded by _update_status(), so it is a real
+# measurement rather than an estimate. Complaints resolved
+# before that event exists are reported as unmeasurable.
+# ============================================================
+
+AGENT_OPEN_STATUSES = [
+    "Assigned",
+    "In Progress",
+    "Awaiting Customer",
+    "Reopened",
+]
+
+
+def get_agent_statistics(agent: dict):
+    """Workload and real handling-time metrics for one agent."""
+
+    agent_id = agent["id"]
+
+    summary_rows = list(
+        complaints_collection.aggregate([
+            {"$match": {"assigned_to": agent_id}},
+            {
+                "$group": {
+                    "_id": None,
+                    "assigned_total": {"$sum": 1},
+                    "open": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$in": [
+                                        "$status",
+                                        AGENT_OPEN_STATUSES,
+                                    ]
+                                },
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "in_progress": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$status", "In Progress"]},
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "awaiting_customer": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$eq": [
+                                        "$status",
+                                        "Awaiting Customer",
+                                    ]
+                                },
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "escalated": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$status", "Escalated"]},
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "closed": {
+                        "$sum": {
+                            "$cond": [
+                                {"$eq": ["$status", "Closed"]},
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "resolved": {
+                        "$sum": {
+                            "$cond": [
+                                {"$ne": ["$resolved_at", None]},
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                }
+            },
+        ])
+    )
+
+    summary = summary_rows[0] if summary_rows else {}
+
+    status_rows = list(
+        complaints_collection.aggregate([
+            {"$match": {"assigned_to": agent_id}},
+            {
+                "$group": {
+                    "_id": "$status",
+                    "count": {"$sum": 1},
+                }
+            },
+        ])
+    )
+
+    status_distribution = build_distribution(
+        status_rows,
+        fallback="Unknown",
+    )
+
+    # --------------------------------------------------------
+    # Handling time: created_at -> resolved_at (age at
+    # resolution) and first "In Progress" -> resolved_at
+    # (actual handling time). Both come from stored events.
+    # --------------------------------------------------------
+    resolved_complaints = list(
+        complaints_collection.find(
+            {
+                "assigned_to": agent_id,
+                "resolved_at": {"$ne": None},
+            },
+            {
+                "created_at": 1,
+                "resolved_at": 1,
+            },
+        )
+    )
+
+    resolution_hours = []
+
+    for complaint in resolved_complaints:
+        created_at = as_utc(complaint.get("created_at"))
+        resolved_at = as_utc(complaint.get("resolved_at"))
+
+        if created_at and resolved_at and resolved_at >= created_at:
+            resolution_hours.append(
+                (resolved_at - created_at).total_seconds() / 3600
+            )
+
+    resolved_ids = [
+        str(complaint["_id"])
+        for complaint in resolved_complaints
+    ]
+
+    start_rows = list(
+        complaint_activity_collection.aggregate([
+            {
+                "$match": {
+                    "complaint_id": {"$in": resolved_ids},
+                    "metadata.new_status": "In Progress",
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$complaint_id",
+                    "started_at": {"$min": "$timestamp"},
+                }
+            },
+        ])
+    ) if resolved_ids else []
+
+    started_map = {
+        row["_id"]: as_utc(row.get("started_at"))
+        for row in start_rows
+    }
+
+    handling_hours = []
+
+    for complaint in resolved_complaints:
+        started_at = started_map.get(str(complaint["_id"]))
+        resolved_at = as_utc(complaint.get("resolved_at"))
+
+        if started_at and resolved_at and resolved_at >= started_at:
+            handling_hours.append(
+                (resolved_at - started_at).total_seconds() / 3600
+            )
+
+    def _average(values):
+        if not values:
+            return None
+
+        return round(sum(values) / len(values), 2)
+
+    now = datetime.now(timezone.utc)
+
+    open_ages = []
+
+    for complaint in complaints_collection.find(
+        {
+            "assigned_to": agent_id,
+            "status": {"$in": AGENT_OPEN_STATUSES},
+        },
+        {"created_at": 1},
+    ):
+        created_at = as_utc(complaint.get("created_at"))
+
+        if created_at:
+            open_ages.append(
+                (now - created_at).total_seconds() / 3600
+            )
+
+    activity_rows = list(
+        complaint_activity_collection.find(
+            {
+                "actor_role": "Agent",
+                "complaint_id": {
+                    "$in": [
+                        str(complaint["_id"])
+                        for complaint in complaints_collection.find(
+                            {"assigned_to": agent_id},
+                            {"_id": 1},
+                        )
+                    ]
+                },
+            }
+        ).sort("timestamp", -1).limit(10)
+    )
+
+    recent_activity = [
+        {
+            "complaint_id": row.get("complaint_id"),
+            "type": row.get("type"),
+            "title": row.get("title"),
+            "description": row.get("description"),
+            "timestamp": row.get("timestamp"),
+        }
+        for row in activity_rows
+    ]
+
+    assigned_total = summary.get("assigned_total", 0)
+    resolved_total = summary.get("resolved", 0)
+
+    return {
+        "generated_at": now,
+        "agent_id": agent_id,
+        "assigned_total": assigned_total,
+        "open": summary.get("open", 0),
+        "in_progress": summary.get("in_progress", 0),
+        "awaiting_customer": summary.get("awaiting_customer", 0),
+        "escalated": summary.get("escalated", 0),
+        "resolved": resolved_total,
+        "closed": summary.get("closed", 0),
+        "resolution_rate_percent": (
+            round((resolved_total / assigned_total) * 100, 2)
+            if assigned_total
+            else None
+        ),
+        "status_distribution": status_distribution,
+        "average_resolution_hours": _average(resolution_hours),
+        "timed_resolutions": len(resolution_hours),
+        "average_handling_hours": _average(handling_hours),
+        "measured_handling_count": len(handling_hours),
+        # Complaints resolved without a stored "In Progress"
+        # transition cannot have their handling time measured.
+        "handling_time_unavailable": max(
+            len(resolved_complaints) - len(handling_hours),
+            0,
+        ),
+        "average_open_age_hours": _average(open_ages),
+        "oldest_open_age_hours": (
+            round(max(open_ages), 2) if open_ages else None
+        ),
+        "recent_activity": recent_activity,
     }
