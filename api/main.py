@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from bson import ObjectId
@@ -35,7 +35,8 @@ if str(ML_DIR) not in sys.path:
 from api.database import (
     complaints_collection,
     analyses_collection,
-    users_collection
+    users_collection,
+    knowledge_documents_collection
 )
 
 
@@ -126,6 +127,8 @@ from api.management import (
 
 from rule_engine import analyze_complaint
 from genai import analyze_with_ai
+from ml.knowledge_base.service import process_upload, search_documents
+from ml.knowledge_base.processor import DocumentProcessingError
 
 # ============================================================
 # APPLICATION
@@ -1624,3 +1627,48 @@ def admin_audit_logs(
     return get_audit_logs(
         limit=limit
     )
+# ============================================================
+# KNOWLEDGE BASE
+# ============================================================
+
+@app.post("/api/admin/knowledge-base/documents")
+async def upload_knowledge_document(
+    file: UploadFile = File(...),
+    version: str = Query(..., min_length=1, max_length=40),
+    title: str | None = Query(default=None, max_length=200),
+    current_user=Depends(require_roles("Admin")),
+):
+    if file.content_type not in {
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }:
+        raise HTTPException(status_code=415, detail="Only PDF and DOCX documents are supported")
+    try:
+        document = process_upload(await file.read(), file.filename or "document", version, title)
+    except DocumentProcessingError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    existing = knowledge_documents_collection.find_one({"title": document["title"], "status": "Active"})
+    if existing:
+        knowledge_documents_collection.update_many(
+            {"title": document["title"], "status": "Active"},
+            {"$set": {"status": "Superseded", "superseded_at": datetime.now(timezone.utc)}}
+        )
+    knowledge_documents_collection.insert_one(document)
+    create_audit_log(actor_id=current_user["id"], actor_role=current_user["role"],
+                     action="Knowledge-base document uploaded", entity_type="knowledge_document",
+                     entity_id=document["document_id"], details={"version": version, "filename": document["filename"]})
+    document.pop("_id", None)
+    return document
+
+
+@app.get("/api/admin/knowledge-base/documents")
+def list_knowledge_documents(current_user=Depends(require_roles("Admin", "Manager", "Reviewer"))):
+    return [{k: v for k, v in document.items() if k not in {"_id", "text", "chunks"}}
+            for document in knowledge_documents_collection.find({}, {"text": 0, "chunks": 0}).sort("uploaded_at", -1)]
+
+
+@app.get("/api/knowledge-base/search")
+def search_knowledge(query: str = Query(..., min_length=1, max_length=300),
+                    current_user=Depends(get_current_user)):
+    documents = list(knowledge_documents_collection.find({"status": "Active"}))
+    return {"query": query, "results": search_documents(documents, query)}
