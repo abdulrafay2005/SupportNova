@@ -200,6 +200,38 @@ export default function App() {
                 </Route>
 
                 {/* =====================
+                    STAFF (shared)
+
+                    NOTE: each path must be
+                    defined exactly once.
+                    Duplicate sibling routes
+                    (e.g. /complaints under
+                    separate single-role
+                    RoleRoutes) only match the
+                    first definition, which
+                    redirected every other
+                    role back to /dashboard.
+                ====================== */}
+
+                <Route
+                  element={
+                    <RoleRoute
+                      roles={[
+                        "Agent",
+                        "Reviewer",
+                        "Manager",
+                        "Admin",
+                      ]}
+                    />
+                  }
+                >
+                  <Route
+                    path="/complaints"
+                    element={<Complaints />}
+                  />
+                </Route>
+
+                {/* =====================
                     AGENT
                 ====================== */}
 
@@ -208,11 +240,6 @@ export default function App() {
                     <RoleRoute roles={["Agent"]} />
                   }
                 >
-                  <Route
-                    path="/complaints"
-                    element={<Complaints />}
-                  />
-
                   <Route
                     path="/queue"
                     element={<MyQueue />}
@@ -232,27 +259,19 @@ export default function App() {
                     path="/manual-review"
                     element={<ManualReview />}
                   />
-
-                  <Route
-                    path="/queue"
-                    element={<MyQueue />}
-                  />
                 </Route>
 
                 {/* =====================
-                    MANAGER
+                    MANAGER + ADMIN
                 ====================== */}
 
                 <Route
                   element={
-                    <RoleRoute roles={["Manager"]} />
+                    <RoleRoute
+                      roles={["Manager", "Admin"]}
+                    />
                   }
                 >
-                  <Route
-                    path="/complaints"
-                    element={<Complaints />}
-                  />
-
                   <Route
                     path="/analytics"
                     element={<Analytics />}
@@ -273,21 +292,6 @@ export default function App() {
                     <RoleRoute roles={["Admin"]} />
                   }
                 >
-                  <Route
-                    path="/complaints"
-                    element={<Complaints />}
-                  />
-
-                  <Route
-                    path="/analytics"
-                    element={<Analytics />}
-                  />
-
-                  <Route
-                    path="/reports"
-                    element={<Reports />}
-                  />
-
                   <Route
                     path="/users"
                     element={<UsersAdmin />}

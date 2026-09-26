@@ -6,6 +6,13 @@ import {
   type ReactNode,
 } from "react";
 import { getComplaintAnalysis } from "@/api/complaints";
+import {
+  agentStart,
+  agentAwait,
+  agentResolve,
+  agentEscalate,
+  agentComment,
+} from "@/api/workflows";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -69,6 +76,7 @@ export function ComplaintDetail() {
     setPriority,
     assignTo,
     updateComplaint,
+    refreshComplaints,
   } = useData();
 
   const complaint = complaints.find((c) => c.id === id);
@@ -117,6 +125,57 @@ export function ComplaintDetail() {
   const [internal, setInternal] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolution, setResolution] = useState("");
+
+  /*
+   * Agent backend actions.
+   *
+   * When the signed-in user is an Agent, the controls below
+   * call the real backend endpoints instead of only mutating
+   * local context state. The backend remains authoritative
+   * for assignment and role checks (403 when the complaint
+   * is not assigned to this agent).
+   */
+  const isAgent = user?.role === "Agent";
+
+  const [actionLoading, setActionLoading] = useState<
+    string | null
+  >(null);
+  const [actionError, setActionError] = useState<
+    string | null
+  >(null);
+  const [commentAction, setCommentAction] = useState<
+    "escalate" | "await-customer" | null
+  >(null);
+  const [actionComment, setActionComment] = useState("");
+
+  const runAgentAction = async (
+    name: string,
+    action: () => Promise<unknown>,
+  ) => {
+    if (actionLoading) return false;
+
+    setActionLoading(name);
+    setActionError(null);
+
+    try {
+      await action();
+      await refreshComplaints();
+      return true;
+    } catch (error) {
+      const detail = (error as {
+        response?: { data?: { detail?: unknown } };
+      })?.response?.data?.detail;
+
+      setActionError(
+        typeof detail === "string"
+          ? detail
+          : `The "${name}" action failed. Please try again.`,
+      );
+      return false;
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   /*
    * Load the real backend analysis.
@@ -609,9 +668,33 @@ export function ComplaintDetail() {
 
     if (!reply.trim()) return;
 
+    const text = reply.trim();
+
+    if (isAgent) {
+      /*
+       * Agents submit comments to the real backend endpoint.
+       * The local timeline entry is only added after the
+       * backend confirms the comment was stored.
+       */
+      void runAgentAction("Comment", () =>
+        agentComment(complaint.id, text),
+      ).then((ok) => {
+        if (ok) {
+          addComment(
+            complaint.id,
+            text,
+            internal,
+          );
+          setReply("");
+        }
+      });
+
+      return;
+    }
+
     addComment(
       complaint.id,
-      reply.trim(),
+      text,
       isStaff && internal,
     );
 
@@ -1134,6 +1217,12 @@ export function ComplaintDetail() {
                   }
                 />
 
+                {isAgent && actionError && (
+                  <p className="mt-2 rounded-md border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">
+                    {actionError}
+                  </p>
+                )}
+
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                   {isStaff ? (
                     <label className="flex items-center gap-2 text-[12px] text-ink-secondary">
@@ -1157,11 +1246,18 @@ export function ComplaintDetail() {
                   <Button
                     type="submit"
                     size="sm"
-                    disabled={!reply.trim()}
+                    disabled={
+                      !reply.trim() ||
+                      (isAgent &&
+                        Boolean(actionLoading))
+                    }
                   >
-                    {isStaff
-                      ? "Add update"
-                      : "Send"}
+                    {isAgent &&
+                    actionLoading === "Comment"
+                      ? "Sending…"
+                      : isStaff
+                        ? "Add update"
+                        : "Send"}
                   </Button>
                 </div>
               </form>
@@ -1323,6 +1419,7 @@ export function ComplaintDetail() {
                         label: status,
                       }),
                     )}
+                    disabled={Boolean(actionLoading)}
                     onChange={(e) => {
                       const next =
                         e.target.value as ComplaintStatus;
@@ -1332,6 +1429,40 @@ export function ComplaintDetail() {
                         next === "Closed"
                       ) {
                         setResolveOpen(true);
+                        return;
+                      }
+
+                      if (isAgent) {
+                        /*
+                         * Route agent transitions through
+                         * the real backend endpoints.
+                         */
+                        if (next === "In Progress") {
+                          void runAgentAction(
+                            "Start handling",
+                            () =>
+                              agentStart(complaint.id),
+                          );
+                          return;
+                        }
+
+                        if (
+                          next === "Awaiting Customer"
+                        ) {
+                          setCommentAction(
+                            "await-customer",
+                          );
+                          return;
+                        }
+
+                        if (next === "Escalated") {
+                          setCommentAction("escalate");
+                          return;
+                        }
+
+                        setActionError(
+                          `Agents cannot set the "${next}" status. Supported transitions: In Progress, Awaiting Customer, Escalated, Resolved.`,
+                        );
                         return;
                       }
 
@@ -1393,14 +1524,22 @@ export function ComplaintDetail() {
                       variant="outline"
                       size="sm"
                       className="w-full"
-                      onClick={() =>
+                      disabled={Boolean(actionLoading)}
+                      onClick={() => {
+                        if (isAgent) {
+                          setCommentAction("escalate");
+                          return;
+                        }
+
                         setStatus(
                           complaint.id,
                           "Escalated",
-                        )
-                      }
+                        );
+                      }}
                     >
-                      Escalate
+                      {actionLoading === "Escalate"
+                        ? "Escalating…"
+                        : "Escalate"}
                     </Button>
                   )}
 
@@ -1412,6 +1551,7 @@ export function ComplaintDetail() {
                         variant="secondary"
                         size="sm"
                         className="w-full"
+                        disabled={Boolean(actionLoading)}
                         onClick={() =>
                           setResolveOpen(true)
                         }
@@ -1419,6 +1559,12 @@ export function ComplaintDetail() {
                         Resolve
                       </Button>
                     )}
+
+                  {actionError && (
+                    <p className="rounded-md border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">
+                      {actionError}
+                    </p>
+                  )}
                 </div>
               </section>
             </>
@@ -1483,20 +1629,53 @@ export function ComplaintDetail() {
 
             <Button
               disabled={
-                resolution.trim().length < 8
+                resolution.trim().length < 8 ||
+                Boolean(actionLoading)
               }
               onClick={() => {
+                const text = resolution.trim();
+
+                if (isAgent) {
+                  /*
+                   * Resolve through the real backend
+                   * endpoint; only close the modal after
+                   * the backend confirms.
+                   */
+                  void runAgentAction(
+                    "Resolve",
+                    () =>
+                      agentResolve(
+                        complaint.id,
+                        text,
+                      ),
+                  ).then((ok) => {
+                    if (ok) {
+                      setStatus(
+                        complaint.id,
+                        "Resolved",
+                        text,
+                      );
+                      setResolveOpen(false);
+                      setResolution("");
+                    }
+                  });
+
+                  return;
+                }
+
                 setStatus(
                   complaint.id,
                   "Resolved",
-                  resolution.trim(),
+                  text,
                 );
 
                 setResolveOpen(false);
                 setResolution("");
               }}
             >
-              Mark resolved
+              {actionLoading === "Resolve"
+                ? "Resolving…"
+                : "Mark resolved"}
             </Button>
           </>
         }
@@ -1509,6 +1688,87 @@ export function ComplaintDetail() {
           }
           hint="Visible on the complaint. Describe what was done."
           rows={5}
+        />
+      </Modal>
+
+      {/* ---------------------------------------------------- */}
+      {/* Agent action comment modal                            */}
+      {/* (escalate / awaiting customer need a comment)         */}
+      {/* ---------------------------------------------------- */}
+
+      <Modal
+        open={commentAction !== null}
+        onClose={() => {
+          setCommentAction(null);
+          setActionComment("");
+        }}
+        title={
+          commentAction === "escalate"
+            ? "Escalate complaint"
+            : "Set awaiting customer"
+        }
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCommentAction(null);
+                setActionComment("");
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              disabled={
+                !actionComment.trim() ||
+                Boolean(actionLoading)
+              }
+              onClick={() => {
+                const text = actionComment.trim();
+                const mode = commentAction;
+
+                if (!mode) return;
+
+                void runAgentAction(
+                  mode === "escalate"
+                    ? "Escalate"
+                    : "Await customer",
+                  () =>
+                    mode === "escalate"
+                      ? agentEscalate(
+                          complaint.id,
+                          text,
+                        )
+                      : agentAwait(
+                          complaint.id,
+                          text,
+                        ),
+                ).then((ok) => {
+                  if (ok) {
+                    setCommentAction(null);
+                    setActionComment("");
+                  }
+                });
+              }}
+            >
+              {actionLoading
+                ? "Submitting…"
+                : commentAction === "escalate"
+                  ? "Escalate"
+                  : "Confirm"}
+            </Button>
+          </>
+        }
+      >
+        <Textarea
+          label="Comment"
+          value={actionComment}
+          onChange={(e) =>
+            setActionComment(e.target.value)
+          }
+          hint="Required. The backend records this comment in the audit log."
+          rows={4}
         />
       </Modal>
     </div>

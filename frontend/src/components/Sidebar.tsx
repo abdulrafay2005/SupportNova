@@ -43,9 +43,8 @@ const staffSections: Section[] = [
     label: "Workspace",
     items: [
       { to: "/complaints", label: "All Complaints", icon: Inbox },
-      { to: "/complaints/new", label: "New Complaint", icon: Plus },
-      { to: "/queue", label: "My Queue", icon: ListTodo },
-      { to: "/manual-review", label: "Manual Review", icon: ClipboardCheck },
+      { to: "/queue", label: "My Queue", icon: ListTodo, roles: ["Agent"] },
+      { to: "/manual-review", label: "Manual Review", icon: ClipboardCheck, roles: ["Reviewer"] },
     ],
   },
   {
@@ -55,8 +54,8 @@ const staffSections: Section[] = [
   {
     label: "Insights",
     items: [
-      { to: "/analytics", label: "Analytics", icon: BarChart3, roles: ["Agent", "Admin"] },
-      { to: "/reports", label: "Reports", icon: FileBarChart, roles: ["Agent", "Admin"] },
+      { to: "/analytics", label: "Analytics", icon: BarChart3, roles: ["Manager", "Admin"] },
+      { to: "/reports", label: "Reports", icon: FileBarChart, roles: ["Manager", "Admin"] },
     ],
   },
   {
