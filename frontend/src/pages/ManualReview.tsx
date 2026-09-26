@@ -1,121 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Textarea } from "@/components/Textarea";
-import { ValidationBadge } from "@/components/ValidationResult";
-import { useData } from "@/context/DataContext";
-import type { Complaint } from "@/types";
-
-const ACTIONS = ["Approve", "Reject", "Modify", "Reclassify", "Reassign", "Escalate", "Regenerate Response", "Add Comment"] as const;
+import { getReviewQueue, reviewAction, type WorkflowComplaint } from "@/api/workflows";
 
 export function ManualReview() {
-  const { complaints, customers, addComment } = useData();
-  const queue = complaints.filter(
-    (c) => c.validation === "Mismatch" || c.validation === "Manual Review Required" || (c.reviewReasons && c.reviewReasons.length > 0),
-  );
-  const [selected, setSelected] = useState<Complaint | null>(null);
-  const [action, setAction] = useState<(typeof ACTIONS)[number]>("Add Comment");
-  const [note, setNote] = useState("");
-  const [done, setDone] = useState("");
-
-  const nameOf = (id: string) => customers.find((c) => c.id === id)?.name ?? "Unknown";
-
-  return (
-    <div>
-      <PageHeader
-        title="Manual review"
-        description="Cases flagged for reviewer action. Controls update this demo workspace only — they are not sent to a backend."
-      />
-      <p className="mb-3 rounded-md border border-line bg-canvas-subtle px-3 py-2 text-[12px] text-ink-muted">
-        Typical reasons: GenAI/Python disagreement, missing policy support, ambiguous complaint, escalation uncertainty, policy contradiction, or a sensitive complaint.
-      </p>
-      {queue.length === 0 ? (
-        <EmptyState title="No cases in review" description="Nothing in this workspace currently requires manual review." />
-      ) : (
-        <div className="panel overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-[13px]">
-              <thead>
-                <tr className="border-b border-line bg-canvas-subtle text-[11px] uppercase tracking-wide text-ink-muted">
-                  <th className="px-3 py-2 font-medium">ID</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Issue</th>
-                  <th className="px-3 py-2 font-medium">Reason</th>
-                  <th className="px-3 py-2 font-medium">Validation</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium"> </th>
-                </tr>
-              </thead>
-              <tbody>
-                {queue.map((c) => (
-                  <tr key={c.id} className="border-b border-line last:border-0 hover:bg-canvas-subtle">
-                    <td className="px-3 py-2 font-mono text-[12px]">
-                      <Link to={`/complaints/${c.id}`} className="text-primary hover:underline">{c.id}</Link>
-                    </td>
-                    <td className="px-3 py-2">{nameOf(c.customerId)}</td>
-                    <td className="px-3 py-2">{c.subject}</td>
-                    <td className="px-3 py-2 text-ink-secondary">{c.reviewReasons?.join(", ") || c.validationDetail.reviewReason || "Review required"}</td>
-                    <td className="px-3 py-2"><ValidationBadge state={c.validation} /></td>
-                    <td className="px-3 py-2"><StatusBadge status={c.status} /></td>
-                    <td className="px-3 py-2">
-                      <button type="button" className="text-[12px] font-medium text-primary hover:underline" onClick={() => { setSelected(c); setDone(""); setNote(""); }}>
-                        Review
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <Modal
-        open={Boolean(selected)}
-        onClose={() => setSelected(null)}
-        title={selected ? `Review ${selected.id}` : "Review"}
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setSelected(null)}>Close</Button>
-            <Button
-              disabled={!note.trim()}
-              onClick={() => {
-                if (!selected) return;
-                addComment(selected.id, `${action}: ${note.trim()}`, true);
-                setDone(`${action} recorded on ${selected.id} in this demo session.`);
-                setNote("");
-              }}
-            >
-              Record action
-            </Button>
-          </>
-        }
-      >
-        {selected && (
-          <div className="space-y-3">
-            <p className="text-[13px] text-ink-secondary">{selected.validationDetail.reviewReason || selected.reviewReasons?.join(" · ")}</p>
-            <label className="block text-[13px] font-medium text-ink-secondary">
-              Reviewer action
-              <select
-                className="mt-1.5 h-9 w-full rounded-md border border-line bg-surface px-2.5 text-[13px]"
-                value={action}
-                onChange={(e) => setAction(e.target.value as (typeof ACTIONS)[number])}
-              >
-                {ACTIONS.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-              </select>
-            </label>
-            <Textarea label="Comment" value={note} onChange={(e) => setNote(e.target.value)} rows={4} />
-            {done && <p className="text-[13px] text-success">{done}</p>}
-            <p className="text-[12px] text-ink-muted">UI only until backend integration exists.</p>
-          </div>
-        )}
-      </Modal>
-    </div>
-  );
+  const [queue, setQueue] = useState<WorkflowComplaint[]>([]); const [selected, setSelected] = useState<WorkflowComplaint | null>(null); const [comment, setComment] = useState(""); const [action, setAction] = useState("approve"); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
+  async function refresh() { setLoading(true); try { setQueue(await getReviewQueue()); setError(null); } catch (e: any) { setError(e?.response?.data?.detail ?? "Unable to load review queue."); } finally { setLoading(false); } }
+  useEffect(() => { void refresh(); }, []);
+  async function submit() { if (!selected || !comment.trim()) return; setSaving(true); try { await reviewAction(selected.id, action, { comment: comment.trim() }); setSelected(null); setComment(""); await refresh(); } catch (e: any) { setError(e?.response?.data?.detail ?? "Reviewer action failed."); } finally { setSaving(false); } }
+  return <div><PageHeader title="Manual review" description="Live reviewer queue from the SupportNova backend." />{error && <p className="mb-3 rounded border border-danger/30 p-3 text-[13px] text-danger">{error}</p>}{loading ? <p className="text-[13px] text-ink-muted">Loading review queue…</p> : queue.length === 0 ? <EmptyState title="No cases in review" description="The backend has no pending review cases." /> : <div className="panel overflow-x-auto"><table className="w-full min-w-[700px] text-left text-[13px]"><thead><tr className="border-b border-line bg-canvas-subtle text-[11px] uppercase text-ink-muted"><th className="px-3 py-2">ID</th><th className="px-3 py-2">Issue</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Review</th></tr></thead><tbody>{queue.map((c) => <tr key={c.id} className="border-b border-line"><td className="px-3 py-2"><Link className="text-primary hover:underline" to={`/complaints/${c.id}`}>{c.id}</Link></td><td className="px-3 py-2">{c.title}</td><td className="px-3 py-2">{c.status}</td><td className="px-3 py-2"><Button size="sm" onClick={() => setSelected(c)}>Review</Button></td></tr>)}</tbody></table></div>}
+  {selected && <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4"><div className="w-full max-w-lg rounded-lg bg-surface p-5 shadow-xl"><h2 className="mb-3 font-semibold">Review {selected.id}</h2><label className="block text-[13px]">Action<select className="mt-1 w-full rounded border p-2" value={action} onChange={(e) => setAction(e.target.value)}><option value="approve">Approve</option><option value="modify">Modify</option><option value="reject">Reject</option><option value="escalate">Escalate</option><option value="comment">Comment</option><option value="regenerate-response">Regenerate response</option></select></label><Textarea className="mt-3" label="Comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={4} /><div className="mt-4 flex justify-end gap-2"><Button variant="outline" onClick={() => setSelected(null)}>Cancel</Button><Button disabled={saving || !comment.trim()} onClick={() => void submit()}>{saving ? "Saving…" : "Submit"}</Button></div></div></div>}</div>;
 }

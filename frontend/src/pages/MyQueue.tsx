@@ -1,47 +1,9 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/Button";
-import { ComplaintTable } from "@/components/ComplaintTable";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
-import { useAuth } from "@/auth/AuthContext";
-import { useData } from "@/context/DataContext";
-import { OPEN_STATUSES } from "@/types";
+import { getAgentQueue, type WorkflowComplaint } from "@/api/workflows";
 
-export function MyQueue() {
-  const { user } = useAuth();
-  const { complaints, customers } = useData();
-  if (!user) return null;
-
-  const mine = complaints
-    .filter((c) => c.assigneeId === user.id)
-    .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));
-  const open = mine.filter((c) => OPEN_STATUSES.includes(c.status));
-  const escalated = open.filter((c) => c.escalated);
-  const pending = open.filter((c) => c.status === "Awaiting Customer");
-
-  return (
-    <div>
-      <PageHeader
-        title="My queue"
-        description={`Complaints assigned to ${user.name}${user.department ? ` · ${user.department}` : ""}.`}
-        actions={
-          <Link to="/complaints">
-            <Button variant="outline">All complaints</Button>
-          </Link>
-        }
-      />
-      <div className="mb-4 grid grid-cols-3 gap-3">
-        <StatCard label="Open assigned" value={open.length} tone="info" />
-        <StatCard label="Awaiting customer" value={pending.length} tone="warning" />
-        <StatCard label="Escalated" value={escalated.length} tone="danger" />
-      </div>
-      <ComplaintTable
-        complaints={open}
-        customers={customers}
-        compact
-        emptyTitle="Queue is clear"
-        emptyDescription="There are no open complaints assigned to you."
-      />
-    </div>
-  );
-}
+export function MyQueue() { const [items, setItems] = useState<WorkflowComplaint[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); useEffect(() => { getAgentQueue().then(setItems).catch((e) => setError(e?.response?.data?.detail ?? "Unable to load agent queue.")).finally(() => setLoading(false)); }, []); const open = items.filter((x) => !["Resolved", "Closed"].includes(x.status)); const pending = open.filter((x) => x.status === "Awaiting Customer"); return <div><PageHeader title="My queue" description="Complaints assigned to the authenticated agent." actions={<Link to="/complaints"><Button variant="outline">All complaints</Button></Link>} /><div className="mb-4 grid grid-cols-3 gap-3"><StatCard label="Open assigned" value={open.length} tone="info" /><StatCard label="Awaiting customer" value={pending.length} tone="warning" /><StatCard label="Escalated" value={open.filter((x) => x.status === "Escalated").length} tone="danger" /></div>{error && <p className="mb-3 text-danger">{error}</p>}{loading ? <p className="text-ink-muted">Loading queue…</p> : open.length === 0 ? <EmptyState title="Queue is clear" description="The backend has no open complaints assigned to you." /> : <div className="panel divide-y divide-line">{open.map((item) => <Link className="block p-3 hover:bg-canvas-subtle" key={item.id} to={`/complaints/${item.id}`}><span className="font-mono text-[12px] text-primary">{item.id}</span><span className="ml-3 text-[13px] font-medium">{item.title}</span><span className="float-right text-[12px] text-ink-muted">{item.status}</span></Link>)}</div>}</div>; }
