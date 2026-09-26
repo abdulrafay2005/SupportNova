@@ -114,6 +114,78 @@ export async function getComplaintAnalysis(complaintId: string) {
 }
 
 /**
+ * Backend complaint detail (GET /api/complaints/{id}).
+ * Staff receive the actual submitter identity and workflow
+ * fields; customers receive the customer-safe subset.
+ */
+export interface ComplaintDetailResponse {
+  id: string;
+  title: string;
+  description: string;
+  order_id?: string | null;
+  transaction_id?: string | null;
+  product?: string | null;
+  amount?: string | null;
+  date?: string | null;
+  status: string;
+  assigned_department?: string | null;
+  customer_facing_request?: string | null;
+  resolution_comment?: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+  resolved_at?: string | null;
+  closed_at?: string | null;
+  // staff-only fields
+  assigned_to?: string | null;
+  manual_review_required?: boolean;
+  review_status?: string | null;
+  reviewer_id?: string | null;
+  user_id?: string;
+  customer?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
+  assigned_agent?: {
+    id: string;
+    name?: string | null;
+  } | null;
+}
+
+export async function getComplaintDetail(complaintId: string) {
+  const response = await api.get<ComplaintDetailResponse>(
+    `/api/complaints/${complaintId}`,
+  );
+
+  return response.data;
+}
+
+/**
+ * Persistent activity timeline
+ * (GET /api/complaints/{id}/activity).
+ * The backend filters customer-visible events for customers.
+ */
+export interface ComplaintActivityEntry {
+  id: string;
+  timestamp: string;
+  type: string;
+  title: string;
+  description: string;
+  actor: string;
+  actorRole: string;
+  metadata?: Record<string, unknown>;
+}
+
+export async function getComplaintActivity(complaintId: string) {
+  const response = await api.get<ComplaintActivityEntry[]>(
+    `/api/complaints/${complaintId}/activity`,
+  );
+
+  return response.data;
+}
+
+/**
  * Temporary frontend fallback used by the existing mock UI.
  * Keep this until the DataContext is switched to the real API.
  */

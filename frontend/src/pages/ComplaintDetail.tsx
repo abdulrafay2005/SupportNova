@@ -1,11 +1,18 @@
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { getComplaintAnalysis } from "@/api/complaints";
+import {
+  getComplaintAnalysis,
+  getComplaintDetail,
+  getComplaintActivity,
+  type ComplaintDetailResponse,
+  type ComplaintActivityEntry,
+} from "@/api/complaints";
 import {
   agentStart,
   agentAwait,
@@ -50,13 +57,28 @@ import { useData } from "@/context/DataContext";
 
 import { customerNextStep } from "@/utils/classify";
 import {
-  COMPLAINT_STATUSES,
   type ComplaintStatus,
   type Customer,
   type DocumentStatus,
   type Priority,
   type Sentiment,
+  type TimelineEvent,
 } from "@/types";
+
+/*
+ * Agent-selectable workflow transitions.
+ *
+ * "Assigned" is a routing state produced by automatic
+ * assignment / reviewer reassignment / management
+ * reassignment — never something an Agent sets manually.
+ * "Closed" finalization is not an Agent action either.
+ */
+const AGENT_TRANSITIONS: ComplaintStatus[] = [
+  "In Progress",
+  "Awaiting Customer",
+  "Escalated",
+  "Resolved",
+];
 
 import { formatDateTime, formatRelative } from "@/utils/dates";
 import { cn } from "@/utils/cn";
@@ -70,7 +92,7 @@ export function ComplaintDetail() {
   const {
     complaints,
     getCustomer,
-    addComment,
+
     setStatus,
     updateComplaint,
     refreshComplaints,
@@ -79,31 +101,76 @@ export function ComplaintDetail() {
   const complaint = complaints.find((c) => c.id === id);
 
   /*
-   * Customer data
+   * Backend complaint detail + persistent activity timeline.
    *
-   * For a customer viewing their own complaint, use the
-   * authenticated user directly. Staff users continue to
-   * use the existing customer lookup.
+   * The detail response carries the ACTUAL submitter identity
+   * (staff only) and the activity endpoint returns the
+   * database-backed timeline (customer-filtered server-side).
    */
-  const customer: Customer | undefined =
-    complaint?.customerId === user?.id && user
+  const [detail, setDetail] =
+    useState<ComplaintDetailResponse | null>(null);
+  const [backendActivity, setBackendActivity] =
+    useState<ComplaintActivityEntry[] | null>(null);
+
+  const loadMeta = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      setDetail(await getComplaintDetail(id));
+    } catch {
+      setDetail(null);
+    }
+
+    try {
+      setBackendActivity(await getComplaintActivity(id));
+    } catch {
+      setBackendActivity(null);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void loadMeta();
+  }, [loadMeta]);
+
+  /*
+   * Customer identity
+   *
+   * A customer viewing their OWN complaint is the submitter,
+   * so their profile is correct. Staff must see the actual
+   * complaint submitter from the backend — NEVER the
+   * currently logged-in staff user.
+   */
+  const isViewerOwner =
+    user?.role === "Customer" &&
+    complaint?.customerId === user.id;
+
+  const customer: Customer | undefined = isViewerOwner && user
+    ? {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        joinedAt: user.createdAt,
+        openComplaints: complaints.filter(
+          (c) =>
+            c.customerId === user.id &&
+            c.status !== "Resolved" &&
+            c.status !== "Closed",
+        ).length,
+      }
+    : detail?.customer
       ? {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          joinedAt: user.createdAt,
-          openComplaints: complaints.filter(
-            (c) =>
-              c.customerId === user.id &&
-              c.status !== "Resolved" &&
-              c.status !== "Closed",
-          ).length,
+          id: detail.customer.id,
+          name: detail.customer.name ?? "Unknown",
+          email: detail.customer.email ?? "",
+          phone: detail.customer.phone ?? undefined,
+          joinedAt: "",
+          openComplaints: 0,
         }
       : complaint
         ? getCustomer(complaint.customerId)
         : undefined;
-        
+
   const assignee = users.find(
     (u) => u.id === complaint?.assigneeId,
   );
@@ -119,7 +186,7 @@ export function ComplaintDetail() {
     complaint?.customerId === user.id;
 
   const [reply, setReply] = useState("");
-  const [internal, setInternal] = useState(false);
+
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolution, setResolution] = useState("");
 
@@ -157,6 +224,7 @@ export function ComplaintDetail() {
     try {
       await action();
       await refreshComplaints();
+      await loadMeta();
       return true;
     } catch (error) {
       const detail = (error as {
@@ -661,35 +729,20 @@ export function ComplaintDetail() {
 
     const text = reply.trim();
 
-    if (isAgent) {
-      /*
-       * Agents submit comments to the real backend endpoint.
-       * The local timeline entry is only added after the
-       * backend confirms the comment was stored.
-       */
-      void runAgentAction("Comment", () =>
-        agentComment(complaint.id, text),
-      ).then((ok) => {
-        if (ok) {
-          addComment(
-            complaint.id,
-            text,
-            internal,
-          );
-          setReply("");
-        }
-      });
-
-      return;
-    }
-
-    addComment(
-      complaint.id,
-      text,
-      isStaff && internal,
-    );
-
-    setReply("");
+    /*
+     * Agents submit comments to the real backend endpoint.
+     * The persistent timeline is refetched from the
+     * database after the backend confirms the comment
+     * (runAgentAction -> loadMeta), so no local/fake
+     * timeline entry is appended.
+     */
+    void runAgentAction("Comment", () =>
+      agentComment(complaint.id, text),
+    ).then((ok) => {
+      if (ok) {
+        setReply("");
+      }
+    });
   };
 
   /*
@@ -1173,82 +1226,78 @@ export function ComplaintDetail() {
               Activity
             </h2>
 
+            {/*
+              The timeline is reconstructed from the
+              persistent complaint_activity collection.
+              The backend filters customer-visible events
+              for customers. Local session events are only
+              a fallback when the activity API is
+              unavailable.
+            */}
             <Timeline
               events={
-                isStaff
-                  ? activityEvents
-                  : activityEvents.filter(
-                      (event) =>
-                        event.type !== "note",
-                    )
+                backendActivity !== null
+                  ? backendActivity.map((entry) => ({
+                      id: entry.id,
+                      timestamp: entry.timestamp,
+                      type: entry.type as TimelineEvent["type"],
+                      title: entry.title,
+                      description: entry.description,
+                      actor: entry.actor,
+                      actorRole:
+                        entry.actorRole as TimelineEvent["actorRole"],
+                    }))
+                  : isStaff
+                    ? activityEvents
+                    : activityEvents.filter(
+                        (event) =>
+                          event.type !== "note",
+                      )
               }
             />
 
-            {user && (
+            {/*
+              Comment form is Agent-only: the agent comment
+              endpoint is the only backend-supported comment
+              mutation on this page. Customers respond via
+              the Awaiting Customer flow; reviewer comments
+              live in Manual Review.
+            */}
+            {isAgent && (
               <form
                 onSubmit={onReply}
                 className="mt-4 border-t border-line pt-4"
               >
                 <Textarea
-                  label={
-                    isStaff
-                      ? "Reply or note"
-                      : "Add more information"
-                  }
+                  label="Internal comment"
                   value={reply}
                   onChange={(e) =>
                     setReply(e.target.value)
                   }
                   rows={4}
                   className="min-h-[96px]"
-                  placeholder={
-                    isStaff
-                      ? "Update the customer or leave an internal note…"
-                      : "Add details or a question…"
-                  }
+                  placeholder="Leave an internal comment on this complaint…"
+                  hint="Stored on the complaint. Not visible to the customer."
                 />
 
-                {isAgent && actionError && (
+                {actionError && (
                   <p className="mt-2 rounded-md border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">
                     {actionError}
                   </p>
                 )}
 
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                  {isStaff ? (
-                    <label className="flex items-center gap-2 text-[12px] text-ink-secondary">
-                      <input
-                        type="checkbox"
-                        checked={internal}
-                        onChange={(e) =>
-                          setInternal(
-                            e.target.checked,
-                          )
-                        }
-                      />
-
-                      Internal note (not visible
-                      to the customer)
-                    </label>
-                  ) : (
-                    <span />
-                  )}
-
+                <div className="mt-2 flex justify-end">
                   <Button
                     type="submit"
                     size="sm"
                     disabled={
                       !reply.trim() ||
-                      (isAgent &&
-                        Boolean(actionLoading))
+                      Boolean(actionLoading)
                     }
                   >
-                    {isAgent &&
-                    actionLoading === "Comment"
+                    {actionLoading === "Comment"
                       ? "Sending…"
-                      : isStaff
-                        ? "Add update"
-                        : "Send"}
+                      : "Add comment"}
                   </Button>
                 </div>
               </form>
@@ -1274,17 +1323,13 @@ export function ComplaintDetail() {
             <div className="flex items-start gap-3">
               <Avatar
                 name={
-                  customer?.name ??
-                  user?.name ??
-                  "Customer"
+                  customer?.name ?? "Customer"
                 }
               />
 
               <div className="min-w-0">
                 <p className="text-[13px] font-medium text-ink">
-                  {customer?.name ??
-                    user?.name ??
-                    "Unknown"}
+                  {customer?.name ?? "Unknown"}
                 </p>
 
                 {customer?.company && (
@@ -1309,20 +1354,23 @@ export function ComplaintDetail() {
 
             {isStaff && (
               <ul className="mt-3 space-y-1.5 text-[13px] text-ink-secondary">
-                {(customer?.email ?? user?.email) && (
+                {customer?.email && (
                   <li className="flex items-center gap-2">
                     <Mail
                       size={13}
                       className="text-ink-faint"
                     />
 
-                    <span className="truncate">
-                      {customer?.email ?? user?.email}
-                    </span>
+                    <a
+                      className="truncate text-primary hover:underline"
+                      href={`mailto:${customer.email}?subject=SupportNova complaint ${complaint.id}`}
+                    >
+                      {customer.email}
+                    </a>
                   </li>
                 )}
 
-                {(customer?.phone ?? user?.phone) && (
+                {customer?.phone && (
                   <li className="flex items-center gap-2">
                     <Phone
                       size={13}
@@ -1330,7 +1378,7 @@ export function ComplaintDetail() {
                     />
 
                     <span>
-                      {customer?.phone ?? user?.phone}
+                      {customer.phone}
                     </span>
                   </li>
                 )}
@@ -1414,7 +1462,7 @@ export function ComplaintDetail() {
                   <Select
                     label="Status"
                     value={complaint.status}
-                    options={COMPLAINT_STATUSES.map(
+                    options={AGENT_TRANSITIONS.map(
                       (status) => ({
                         value: status,
                         label: status,

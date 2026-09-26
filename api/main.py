@@ -10,7 +10,7 @@ from bson import ObjectId
 
 from api.workflow import build_workflow_fields
 from api.audit import create_audit_log
-from api.assignment import assign_complaint
+from api.assignment import assign_complaint, auto_assign_complaint
 from api.workflow_validation import validate_workflow
 
 
@@ -36,8 +36,10 @@ from api.database import (
     complaints_collection,
     analyses_collection,
     users_collection,
-    knowledge_documents_collection
+    knowledge_documents_collection,
+    complaint_activity_collection
 )
+from api.activity import create_complaint_activity
 
 
 # ============================================================
@@ -522,6 +524,105 @@ def create_complaint(
         }
     )
 
+    # --------------------------------------------------------
+    # Persistent timeline events.
+    #
+    # Each entry is recorded only because the corresponding
+    # backend operation above actually ran: submission,
+    # rule-engine + GenAI analysis, and independent Python
+    # validation.
+    # --------------------------------------------------------
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="submitted",
+        title="Complaint submitted",
+        description="Complaint received by SupportNova.",
+        actor=current_user.get("name", "Customer"),
+        actor_role="Customer",
+        customer_visible=True,
+    )
+
+    classification = analysis.get("classification", {})
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="classified",
+        title="System analysis completed",
+        description=(
+            "Complaint classified and policy analysis "
+            "completed."
+        ),
+        metadata={
+            "category": classification.get("category"),
+            "subcategory": classification.get("subcategory"),
+            "department": classification.get("department"),
+            "escalation_required": analysis.get(
+                "escalation", {}
+            ).get("required"),
+        },
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="status",
+        title="Ground-truth validation completed",
+        description=(
+            "Independent Python validation completed."
+        ),
+        metadata={
+            "validation_status": validation.get("status"),
+            "manual_review_required": validation.get(
+                "manual_review_required"
+            ),
+        },
+    )
+
+    # --------------------------------------------------------
+    # AUTOMATIC ROUTING
+    #
+    # Manual-review complaints go to the reviewer queue and
+    # are NOT auto-assigned. Normal complaints are assigned
+    # to an active agent automatically.
+    # --------------------------------------------------------
+
+    if workflow_fields["status"] == "Manual Review":
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="routed",
+            title="Manual review required",
+            description=(
+                "Complaint routed to the reviewer queue."
+            ),
+            metadata={
+                "reasons": validation.get("reasons", []),
+            },
+        )
+
+    elif workflow_fields["status"] == "Escalated":
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="escalated",
+            title="Escalation detected during analysis",
+            description=(
+                "Complaint entered the escalation workflow."
+            ),
+            metadata={
+                "level": analysis.get(
+                    "escalation", {}
+                ).get("level"),
+            },
+        )
+
+    else:
+        auto_assign_complaint(
+            complaint_object_id=result.inserted_id,
+            complaint_id=complaint_id,
+            department=workflow_fields.get(
+                "assigned_department"
+            ),
+        )
+
     
     # --------------------------------------------------------
     # Save complete analysis
@@ -730,9 +831,13 @@ def get_complaint(
 
     # --------------------------------------------------------
     # Response
+    #
+    # Customers get a customer-safe subset. Staff also get
+    # workflow fields plus the ACTUAL complaint submitter's
+    # identity (never the currently logged-in user).
     # --------------------------------------------------------
 
-    return {
+    response = {
 
         "id": str(
             complaint["_id"]
@@ -766,10 +871,101 @@ def get_complaint(
             "date"
         ),
 
+        "status": complaint.get(
+            "status",
+            "New"
+        ),
+
+        "assigned_department": complaint.get(
+            "assigned_department"
+        ),
+
+        "customer_facing_request": complaint.get(
+            "customer_facing_request"
+        ),
+
+        "resolution_comment": complaint.get(
+            "resolution_comment"
+        ),
+
         "created_at": complaint.get(
             "created_at"
+        ),
+
+        "updated_at": complaint.get(
+            "updated_at"
+        ),
+
+        "resolved_at": complaint.get(
+            "resolved_at"
+        ),
+
+        "closed_at": complaint.get(
+            "closed_at"
         )
     }
+
+    if role == "Customer":
+        return response
+
+    # ----- staff-only fields -----
+
+    response["assigned_to"] = complaint.get("assigned_to")
+    response["manual_review_required"] = complaint.get(
+        "manual_review_required",
+        False
+    )
+    response["review_status"] = complaint.get(
+        "review_status"
+    )
+    response["reviewer_id"] = complaint.get("reviewer_id")
+    response["user_id"] = str(complaint.get("user_id", ""))
+
+    # Actual complaint submitter (owner) identity.
+    owner = None
+    owner_id = complaint.get("user_id")
+
+    if owner_id:
+        try:
+            owner = users_collection.find_one(
+                {"_id": ObjectId(str(owner_id))}
+            )
+        except Exception:
+            owner = None
+
+    response["customer"] = (
+        {
+            "id": str(owner["_id"]),
+            "name": owner.get("name"),
+            "email": owner.get("email"),
+            "phone": owner.get("phone"),
+        }
+        if owner
+        else None
+    )
+
+    # Assigned agent identity for display.
+    agent_doc = None
+    assigned_to = complaint.get("assigned_to")
+
+    if assigned_to:
+        try:
+            agent_doc = users_collection.find_one(
+                {"_id": ObjectId(str(assigned_to))}
+            )
+        except Exception:
+            agent_doc = None
+
+    response["assigned_agent"] = (
+        {
+            "id": str(agent_doc["_id"]),
+            "name": agent_doc.get("name"),
+        }
+        if agent_doc
+        else None
+    )
+
+    return response
 
 
 
@@ -918,17 +1114,25 @@ def get_complaint_activity(
             detail="You do not have permission to access this complaint"
         )
 
+    query = {
+        "complaint_id": complaint_id
+    }
+
+    # Customers only see customer-facing updates; internal
+    # workflow events (notes, guidance, validation internals,
+    # reviewer activity) stay staff-only.
+    if role == "Customer":
+        query["customer_visible"] = True
+
     activities = []
 
     for activity in complaint_activity_collection.find(
-        {
-            "complaint_id": complaint_id
-        }
+        query
     ).sort(
         "timestamp",
         1
     ):
-        activities.append({
+        entry = {
             "id": str(activity["_id"]),
             "timestamp": activity["timestamp"],
             "type": activity["type"],
@@ -945,7 +1149,15 @@ def get_complaint_activity(
                 "actor_role",
                 "System"
             ),
-        })
+        }
+
+        if role != "Customer":
+            entry["metadata"] = activity.get(
+                "metadata",
+                {}
+            )
+
+        activities.append(entry)
 
     return activities
 

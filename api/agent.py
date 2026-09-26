@@ -5,6 +5,13 @@ from fastapi import HTTPException
 
 from api.database import complaints_collection
 from api.audit import create_audit_log
+from api.activity import create_complaint_activity
+
+_ACTIVITY_TYPE_BY_STATUS = {
+    "In Progress": "status",
+    "Awaiting Customer": "status",
+    "Escalated": "escalated",
+}
 
 
 def _get_complaint(complaint_id: str):
@@ -69,6 +76,22 @@ def _update_status(
         }
     )
 
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type=_ACTIVITY_TYPE_BY_STATUS.get(
+            next_status,
+            "status"
+        ),
+        title=f"Agent: {action}",
+        description=comment or "",
+        actor=agent.get("name", "Agent"),
+        actor_role=agent["role"],
+        metadata={
+            "previous_status": previous_status,
+            "new_status": next_status,
+        },
+    )
+
     return {
         "message": f"Complaint {action.lower()} successfully",
         "complaint_id": complaint_id,
@@ -103,13 +126,33 @@ def await_customer(
             detail="Comment is required when awaiting customer"
         )
 
-    return _update_status(
+    result = _update_status(
         complaint_id=complaint_id,
         agent=agent,
         next_status="Awaiting Customer",
         action="Awaiting customer",
         comment=comment
     )
+
+    # Persist the customer-facing request on the complaint and
+    # record a customer-visible update, distinct from the
+    # internal workflow activity written by _update_status.
+    complaints_collection.update_one(
+        {"_id": ObjectId(complaint_id)},
+        {"$set": {"customer_facing_request": comment}}
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="comment",
+        title="Support requested additional information",
+        description=comment,
+        actor=agent.get("name", "Agent"),
+        actor_role=agent["role"],
+        customer_visible=True,
+    )
+
+    return result
 
 
 def resolve_complaint(
@@ -154,6 +197,17 @@ def resolve_complaint(
             "new_status": "Resolved",
             "comment": comment
         }
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="resolved",
+        title="Agent resolved the complaint",
+        description=comment,
+        actor=agent.get("name", "Agent"),
+        actor_role=agent["role"],
+        metadata={"previous_status": previous_status},
+        customer_visible=True,
     )
 
     return {
@@ -231,6 +285,15 @@ def add_agent_comment(
         details={
             "comment": comment
         }
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="note",
+        title="Agent added an internal comment",
+        description=comment,
+        actor=agent.get("name", "Agent"),
+        actor_role=agent["role"],
     )
 
     return {

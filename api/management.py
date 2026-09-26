@@ -10,6 +10,7 @@ from api.database import (
     audit_logs_collection,
 )
 from api.audit import create_audit_log
+from api.activity import create_complaint_activity
 
 
 # ============================================================
@@ -242,6 +243,23 @@ def reassign_management_complaint(
                 "updated_at": now
             }
         }
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="assigned",
+        title="Complaint reassigned to Agent",
+        description=(
+            f"Reassigned to {agent.get('name', 'agent')} by "
+            f"{actor.get('name', actor['role'])}."
+        ),
+        actor=actor.get("name", "SupportNova"),
+        actor_role=actor["role"],
+        metadata={
+            "agent_id": str(agent_object_id),
+            "agent_name": agent.get("name"),
+            "source": "management",
+        },
     )
 
     create_audit_log(

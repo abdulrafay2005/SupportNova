@@ -10,6 +10,7 @@ from api.database import (
     users_collection,
 )
 from api.audit import create_audit_log
+from api.activity import create_complaint_activity
 from ml.genai import generate_ai_fields, merge_ai_result, openai_enabled
 
 # ============================================================
@@ -177,6 +178,23 @@ def _complete_review(
             "changes": changes or {},
             "resulting_status": next_status
         }
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type=(
+            "assigned" if action == "Reassigned"
+            else "escalated" if action == "Escalated"
+            else "status"
+        ),
+        title=f"Reviewer: {action}",
+        description=comment or "",
+        actor=reviewer.get("name", "Reviewer"),
+        actor_role=reviewer["role"],
+        metadata={
+            "changes": changes or {},
+            "resulting_status": next_status,
+        },
     )
 
     return {
@@ -581,6 +599,15 @@ def add_review_comment(
         details={
             "comment": comment
         }
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="note",
+        title="Reviewer added a comment",
+        description=comment,
+        actor=reviewer.get("name", "Reviewer"),
+        actor_role=reviewer["role"],
     )
 
     return {
