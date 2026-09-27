@@ -1,17 +1,24 @@
 import type { EscalationAssessment, FollowUp } from "@/types";
+import { NotAvailable } from "@/components/NotAvailable";
 import { ValidationBadge } from "@/components/ValidationResult";
 
 export function EscalationPanel({
   assessment,
   followUp,
 }: {
-  assessment: EscalationAssessment;
+  assessment: EscalationAssessment | null;
   followUp?: FollowUp;
 }) {
   return (
     <div className="space-y-4">
       <div className="panel p-4">
         <h3 className="text-[13px] font-semibold text-ink">Escalation assessment</h3>
+        {!assessment ? (
+          <p className="mt-2 text-[13px] text-ink-muted">
+            No escalation assessment is stored for this complaint.
+          </p>
+        ) : (
+        <>
         <dl className="mt-3 space-y-2 text-[13px]">
           <div className="flex justify-between gap-3">
             <dt className="text-ink-muted">Escalation required</dt>
@@ -21,7 +28,9 @@ export function EscalationPanel({
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink-muted">Level</dt>
-            <dd className="text-right font-medium text-ink">{assessment.level}</dd>
+            <dd className="text-right font-medium text-ink">
+              {assessment.level ?? <NotAvailable />}
+            </dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink-muted">Validation</dt>
@@ -30,12 +39,16 @@ export function EscalationPanel({
             </dd>
           </div>
         </dl>
-        <p className="mt-3 text-[13px] text-ink-secondary">{assessment.reason}</p>
+        {assessment.reason && (
+          <p className="mt-3 text-[13px] text-ink-secondary">{assessment.reason}</p>
+        )}
         {assessment.notes && (
           <div className="mt-3 border-t border-line pt-3">
             <p className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Escalation notes</p>
             <p className="mt-1 text-[13px] text-ink-secondary">{assessment.notes}</p>
           </div>
+        )}
+        </>
         )}
       </div>
 

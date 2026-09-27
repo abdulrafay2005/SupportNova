@@ -25,9 +25,17 @@ interface StoredAuth {
 
 interface AuthState {
   user: User | null;
-  users: User[];
   loading: boolean;
 }
+
+/*
+ * NOTE: there is no `users` list on the auth context.
+ *
+ * Staff administration reads the real directory from
+ * GET /api/admin/users (Admin only) and the assigned agent on a
+ * complaint comes from the complaint detail response, so no screen
+ * needs — or is allowed — a client-side copy of the user table.
+ */
 
 interface AuthContextValue extends AuthState {
   login: (
@@ -43,11 +51,16 @@ interface AuthContextValue extends AuthState {
   ) => Promise<{ ok: boolean; error?: string }>;
 
   logout: () => void;
-
-  updateProfile: (
-    patch: Partial<Pick<User, "name" | "phone">>,
-  ) => void;
 }
+
+/*
+ * NOTE: there is no `updateProfile` on the auth context.
+ *
+ * The API exposes no self-service profile update, so mutating the
+ * cached user locally would show a change that the server never
+ * stored. Staff details are edited by an Admin through
+ * PATCH /api/admin/users/{user_id}.
+ */
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -151,14 +164,6 @@ export function AuthProvider({
   const [loading, setLoading] = useState(
     Boolean(storedAuth?.token),
   );
-
-  /*
-   * Kept temporarily because existing frontend components may still
-   * expect `users` from the AuthContext.
-   *
-   * User administration will later use the real backend users API.
-   */
-  const [users] = useState<User[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -283,65 +288,20 @@ export function AuthProvider({
     sessionStorage.removeItem(STORAGE_KEY);
   }, []);
 
-  const updateProfile = useCallback(
-    (
-      patch: Partial<Pick<User, "name" | "phone">>,
-    ) => {
-      setUser((previous) => {
-        if (!previous) {
-          return previous;
-        }
-
-        const next = {
-          ...previous,
-          ...patch,
-        };
-
-        const localRaw = localStorage.getItem(STORAGE_KEY);
-        const sessionRaw = sessionStorage.getItem(STORAGE_KEY);
-
-        const raw = localRaw ?? sessionRaw;
-
-        if (raw) {
-          try {
-            const stored = JSON.parse(raw) as StoredAuth;
-
-            persistAuth(
-              {
-                token: stored.token,
-                user: next,
-              },
-              Boolean(localRaw),
-            );
-          } catch {
-            // Ignore malformed local authentication data.
-          }
-        }
-
-        return next;
-      });
-    },
-    [],
-  );
-
   const value = useMemo(
     () => ({
       user,
-      users,
       loading,
       login,
       register,
       logout,
-      updateProfile,
     }),
     [
       user,
-      users,
       loading,
       login,
       register,
       logout,
-      updateProfile,
     ],
   );
 

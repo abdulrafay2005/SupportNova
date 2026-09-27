@@ -37,6 +37,7 @@ import { Button } from "@/components/Button";
 import { EscalationPanel } from "@/components/EscalationPanel";
 import { ErrorState } from "@/components/ErrorState";
 import { Modal } from "@/components/Modal";
+import { NotAvailable } from "@/components/NotAvailable";
 import { PolicyReference } from "@/components/PolicyReference";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { ResolutionSteps } from "@/components/ResolutionSteps";
@@ -64,6 +65,8 @@ import {
   type Priority,
   type Sentiment,
   type TimelineEvent,
+  type Urgency,
+  type ValidationState,
 } from "@/types";
 
 /*
@@ -88,7 +91,7 @@ export function ComplaintDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const { user, users } = useAuth();
+  const { user } = useAuth();
 
   const {
     complaints,
@@ -111,6 +114,12 @@ export function ComplaintDetail() {
     useState<ComplaintDetailResponse | null>(null);
   const [backendActivity, setBackendActivity] =
     useState<ComplaintActivityEntry[] | null>(null);
+
+  /* Stored-analysis fetch state, surfaced instead of failing silently. */
+  const [analysisLoading, setAnalysisLoading] =
+    useState(false);
+  const [analysisError, setAnalysisError] =
+    useState<string | null>(null);
 
   const loadMeta = useCallback(async () => {
     if (!id) return;
@@ -171,9 +180,19 @@ export function ComplaintDetail() {
         ? getCustomer(complaint.customerId)
         : undefined;
 
-  const assignee = users.find(
-    (u) => u.id === complaint?.assigneeId,
-  );
+  /*
+   * The assigned agent comes from the backend detail response
+   * (staff-only field), so the name shown always matches the
+   * persisted `assigned_to`. There is no client-side user
+   * directory to look names up in.
+   */
+  const assignee = detail?.assigned_agent ?? null;
+
+  const assigneeLabel =
+    assignee?.name ??
+    (complaint?.assigneeId || detail?.assigned_to
+      ? "Assigned (name unavailable)"
+      : null);
 
   const isStaff =
     user?.role === "Agent" ||
@@ -250,42 +269,53 @@ export function ComplaintDetail() {
     if (!id || !complaint) return;
 
     const loadAnalysis = async () => {
+      setAnalysisLoading(true);
+      setAnalysisError(null);
+
       try {
         const analysis = await getComplaintAnalysis(id);
 
-        console.log("Complaint analysis:", analysis);
-
         /*
          * ----------------------------------------------------
-         * Severity -> frontend priority / urgency
+         * Priority
+         *
+         * The rule engine writes a real priority onto the
+         * analysis. It is NOT derived from the escalation
+         * severity, and it is left empty when the engine did
+         * not produce one.
          * ----------------------------------------------------
          */
 
-        const backendSeverity =
-          analysis.escalation?.level || "Standard";
-
         const priorityMap: Record<string, Priority> = {
-          Standard: "P3",
-          Medium: "P2",
-          High: "P1",
           Critical: "P0",
+          High: "P1",
+          Medium: "P2",
+          Low: "P3",
+          P0: "P0",
+          P1: "P1",
+          P2: "P2",
+          P3: "P3",
         };
 
-        const urgencyMap: Record<
-          string,
-          "Low" | "Medium" | "High" | "Critical"
-        > = {
-          Standard: "Low",
-          Medium: "Medium",
-          High: "High",
-          Critical: "Critical",
-        };
+        const rawPriority =
+          typeof analysis.priority === "string"
+            ? analysis.priority.trim()
+            : "";
 
-        const priority =
-          priorityMap[backendSeverity] ?? "P3";
+        const priority: Priority | null =
+          priorityMap[rawPriority] ?? null;
 
-        const urgency =
-          urgencyMap[backendSeverity] ?? "Low";
+        /*
+         * ----------------------------------------------------
+         * Urgency
+         *
+         * No urgency value is produced by the analysis
+         * pipeline or persisted on the complaint, so there is
+         * nothing to show.
+         * ----------------------------------------------------
+         */
+
+        const urgency: Urgency | null = null;
 
         /*
          * ----------------------------------------------------
@@ -298,14 +328,16 @@ export function ComplaintDetail() {
             ?.trim()
             .toLowerCase();
 
-        const sentiment: Sentiment =
+        const sentiment: Sentiment | null =
           sentimentLabel === "positive"
             ? "Positive"
             : sentimentLabel === "strongly negative"
               ? "Strongly Negative"
               : sentimentLabel === "negative"
                 ? "Negative"
-                : "Neutral";
+                : sentimentLabel === "neutral"
+                  ? "Neutral"
+                  : null;
 
         /*
          * ----------------------------------------------------
@@ -316,13 +348,18 @@ export function ComplaintDetail() {
         const productService =
           analysis.entities?.product ||
           complaint.productService ||
-          "Unspecified";
+          null;
 
         /*
          * ----------------------------------------------------
          * Escalation
          * ----------------------------------------------------
          */
+
+        const escalationLevel =
+          typeof analysis.escalation?.level === "string"
+            ? analysis.escalation.level.trim()
+            : "";
 
         const escalated =
           analysis.escalation?.required ?? false;
@@ -354,16 +391,14 @@ export function ComplaintDetail() {
          * ----------------------------------------------------
          */
 
-        const validationStatus =
+        const validationStatus: ValidationState | null =
           analysis.validation?.manual_review_required
             ? "Manual Review Required"
-            : analysis.validation?.status ===
-                "Passed"
+            : analysis.validation?.status === "Passed"
               ? "Match"
-              : analysis.validation?.status ===
-                  "Failed"
+              : analysis.validation?.status === "Failed"
                 ? "Mismatch"
-                : "Pending";
+                : null;
 
         /*
          * ----------------------------------------------------
@@ -393,16 +428,26 @@ export function ComplaintDetail() {
 
         updateComplaint(id, {
           category:
-            analysis.classification?.category ??
-            complaint.category,
+            analysis.classification?.category ||
+            complaint.category ||
+            null,
 
           subcategory:
-            analysis.classification?.subcategory ??
-            complaint.subcategory,
+            analysis.classification?.subcategory ||
+            complaint.subcategory ||
+            null,
 
+          /*
+           * The routing department the workflow persisted on the
+           * complaint wins: that is where the complaint actually
+           * went. The classification department is only a
+           * fallback for complaints that were never routed.
+           */
           department:
-            analysis.classification?.department ??
-            complaint.department,
+            complaint.department ||
+            analysis.routing?.primary_department ||
+            analysis.classification?.department ||
+            null,
 
           productService,
 
@@ -421,7 +466,7 @@ export function ComplaintDetail() {
           policy,
 
           intelligence: {
-            ...complaint.intelligence,
+            secondaryIssues: [],
 
             summary:
               analysis.resolution?.explanation ||
@@ -432,12 +477,14 @@ export function ComplaintDetail() {
               complaint.subject,
 
             category:
-              analysis.classification?.category ??
-              complaint.category,
+              analysis.classification?.category ||
+              complaint.category ||
+              null,
 
             subcategory:
-              analysis.classification?.subcategory ??
-              complaint.subcategory,
+              analysis.classification?.subcategory ||
+              complaint.subcategory ||
+              null,
 
             sentiment,
             urgency,
@@ -467,8 +514,10 @@ export function ComplaintDetail() {
             ].filter(Boolean),
 
             department:
-              analysis.classification?.department ??
-              complaint.department,
+              complaint.department ||
+              analysis.routing?.primary_department ||
+              analysis.classification?.department ||
+              null,
 
             supportingDepartment,
 
@@ -532,14 +581,22 @@ export function ComplaintDetail() {
           escalationAssessment: {
             required: escalated,
 
+            /*
+             * The stored escalation level, mapped onto the
+             * levels the UI knows. An unrecognised or missing
+             * level renders as "Not available" rather than
+             * being guessed from the severity.
+             */
             level: escalated
-              ? backendSeverity === "Critical"
+              ? escalationLevel === "Critical"
                 ? "Critical Management Escalation"
-                : backendSeverity === "High"
+                : escalationLevel === "High"
                   ? "Supervisor Review"
-                  : backendSeverity === "Medium"
+                  : escalationLevel === "Medium"
                     ? "Department Manager"
-                    : "Specialist Team"
+                    : escalationLevel === "Low"
+                      ? "Specialist Team"
+                      : null
               : "No Escalation",
 
             reason:
@@ -583,15 +640,26 @@ export function ComplaintDetail() {
             analysis.customer_response ||
             undefined,
         });
-      } catch (error) {
-        console.error(
-          "Failed to load complaint analysis:",
-          error,
+      } catch (error: unknown) {
+        const status = (
+          error as { response?: { status?: number } }
+        )?.response?.status;
+
+        /*
+         * 404 simply means no analysis document exists for
+         * this complaint, which is a valid state.
+         */
+        setAnalysisError(
+          status === 404
+            ? null
+            : "The stored analysis could not be loaded.",
         );
+      } finally {
+        setAnalysisLoading(false);
       }
     };
 
-    loadAnalysis();
+    void loadAnalysis();
   }, [id]);
 
   /*
@@ -668,10 +736,7 @@ export function ComplaintDetail() {
    */
 
   const nextStep = (() => {
-    if (
-      complaint.department &&
-      complaint.department !== "Unassigned"
-    ) {
+    if (complaint.department) {
       switch (complaint.status) {
         case "New":
           return "Complaint analysis";
@@ -822,8 +887,8 @@ export function ComplaintDetail() {
             Submitted{" "}
             {formatDateTime(complaint.createdAt)}
 
-            {assignee && isStaff
-              ? ` · Assigned to ${assignee.name}`
+            {isStaff && assigneeLabel
+              ? ` · Assigned to ${assigneeLabel}`
               : ""}
 
             {complaint.reference
@@ -887,7 +952,7 @@ export function ComplaintDetail() {
                   Product / service
                 </dt>
                 <dd>
-                  {complaint.productService}
+                  {complaint.productService ?? <NotAvailable />}
                 </dd>
               </div>
 
@@ -896,8 +961,9 @@ export function ComplaintDetail() {
                   Preferred channel
                 </dt>
                 <dd>
-                  {complaint.contactChannel ??
-                    "Portal"}
+                  {complaint.contactChannel ?? (
+                    <NotAvailable />
+                  )}
                 </dd>
               </div>
 
@@ -1019,7 +1085,7 @@ export function ComplaintDetail() {
                     label="Primary issue"
                     value={
                       complaint.intelligence
-                        .primaryIssue
+                        ?.primaryIssue
                     }
                   />
 
@@ -1048,8 +1114,8 @@ export function ComplaintDetail() {
                   <Info
                     label="Entities"
                     value={
-                      complaint.intelligence.entities
-                        .join(", ") || "—"
+                      complaint.intelligence?.entities
+                        .join(", ") || null
                     }
                   />
                 </dl>
@@ -1069,11 +1135,27 @@ export function ComplaintDetail() {
                 </div>
               </section>
 
-              <AnalysisCard
-                intelligence={
-                  complaint.intelligence
-                }
-              />
+              {complaint.intelligence ? (
+                <AnalysisCard
+                  intelligence={
+                    complaint.intelligence
+                  }
+                />
+              ) : (
+                <section className="panel p-4">
+                  <h2 className="text-[13px] font-semibold text-ink">
+                    Complaint analysis
+                  </h2>
+
+                  <p className="mt-1 text-[13px] text-ink-muted">
+                    {analysisError
+                      ? analysisError
+                      : analysisLoading
+                        ? "Loading the stored analysis…"
+                        : "No analysis is stored for this complaint."}
+                  </p>
+                </section>
+              )}
 
               <PolicyReference
                 policy={complaint.policy}
@@ -1429,9 +1511,11 @@ export function ComplaintDetail() {
                     className="text-ink-faint"
                   />
 
-                  {customer
-                    ? `${customer.openComplaints} open`
-                    : "—"}
+                  {customer?.openComplaints === undefined ? (
+                    <NotAvailable label="Open complaints not available" />
+                  ) : (
+                    `${customer.openComplaints} open`
+                  )}
                 </li>
               </ul>
             )}
@@ -1474,10 +1558,7 @@ export function ComplaintDetail() {
 
                   <Row
                     label="Assignee"
-                    value={
-                      assignee?.name ??
-                      "Unassigned"
-                    }
+                    value={assigneeLabel ?? "Not assigned"}
                   />
 
                   {complaint.slaRisk && (
@@ -1800,8 +1881,10 @@ function Info({
   value,
 }: {
   label: string;
-  value: string;
+  value: string | null | undefined;
 }) {
+  const present = Boolean(value && value.trim());
+
   return (
     <div>
       <dt className="text-[11px] uppercase tracking-wide text-ink-muted">
@@ -1809,7 +1892,7 @@ function Info({
       </dt>
 
       <dd className="mt-0.5 font-medium text-ink">
-        {value}
+        {present ? value : <NotAvailable />}
       </dd>
     </div>
   );
@@ -1821,9 +1904,11 @@ function Row({
   icon,
 }: {
   label: string;
-  value: string;
+  value: string | null | undefined;
   icon?: ReactNode;
 }) {
+  const present = Boolean(value && value.trim());
+
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="text-ink-muted">
@@ -1831,8 +1916,8 @@ function Row({
       </dt>
 
       <dd className="flex items-center gap-1.5 text-right font-medium text-ink">
-        {icon}
-        {value}
+        {present && icon}
+        {present ? value : <NotAvailable />}
       </dd>
     </div>
   );

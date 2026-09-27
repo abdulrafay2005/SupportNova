@@ -4,7 +4,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { UrgencyBadge } from "@/components/UrgencyBadge";
-import { useData } from "@/context/DataContext";
+import { exampleComplaints, exampleCustomers } from "@/data/mockData";
 import { cn } from "@/utils/cn";
 
 const TABS = [
@@ -16,13 +16,30 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+/*
+ * Public marketing preview.
+ *
+ * This renders a fixed illustrative record from
+ * `@/data/mockData`, NOT live data. It deliberately no longer
+ * reads DataContext: the landing page is public, and the signed-in
+ * user's real complaints must never be rendered as marketing
+ * material.
+ */
 export function ProductTabs() {
-  const { complaints, getCustomer } = useData();
+  const complaints = exampleComplaints;
+  const getCustomer = (id: string) =>
+    exampleCustomers.find((customer) => customer.id === id);
   const c = complaints.find((x) => x.id === "SN-000124");
   const [tab, setTab] = useState<TabId>("complaint");
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   if (!c) return null;
+
+  const intel = c.intelligence;
+  const detail = c.validationDetail;
+  const escalation = c.escalationAssessment;
+  if (!intel || !detail || !escalation) return null;
+
   const customer = getCustomer(c.customerId);
   const related = complaints.filter((x) => x.customerId === c.customerId && x.id !== c.id);
 
@@ -92,7 +109,7 @@ export function ProductTabs() {
                 <p className="mt-1.5 text-[14px] leading-relaxed text-ink-secondary">{c.description}</p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <Field label="Order reference" value={c.reference ?? "—"} mono />
-                  <Field label="Product / service" value={c.productService} />
+                  <Field label="Product / service" value={c.productService ?? "—"} />
                   <Field label="Channel" value={c.contactChannel ?? "Portal"} />
                   <Field label="Attachment" value={c.attachmentName ?? "—"} />
                 </div>
@@ -121,10 +138,10 @@ export function ProductTabs() {
 
           {tab === "analysis" && (
             <div>
-              <p className="text-[14px] leading-relaxed text-ink-secondary">{c.intelligence.summary}</p>
+              <p className="text-[14px] leading-relaxed text-ink-secondary">{intel.summary}</p>
               <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-4">
-                <Cell label="Primary issue">{c.intelligence.primaryIssue}</Cell>
-                <Cell label="Secondary issue">{c.intelligence.secondaryIssues.join(", ") || "None"}</Cell>
+                <Cell label="Primary issue">{intel.primaryIssue}</Cell>
+                <Cell label="Secondary issue">{intel.secondaryIssues.join(", ") || "None"}</Cell>
                 <Cell label="Category">{c.category}</Cell>
                 <Cell label="Subcategory">{c.subcategory}</Cell>
                 <Cell label="Sentiment"><SentimentBadge sentiment={c.sentiment} /></Cell>
@@ -134,7 +151,7 @@ export function ProductTabs() {
               </div>
               <Label className="mt-4">Entities</Label>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {c.intelligence.entities.map((e) => (
+                {intel.entities.map((e) => (
                   <span key={e} className="rounded border border-line bg-canvas-subtle px-2 py-0.5 font-mono text-[12px] text-ink-secondary">
                     {e}
                   </span>
@@ -156,7 +173,7 @@ export function ProductTabs() {
                     </tr>
                   </thead>
                   <tbody>
-                    {c.validationDetail.fields.map((f) => (
+                    {detail.fields.map((f) => (
                       <tr key={f.field} className="border-b border-line last:border-0">
                         <td className="py-2.5 pr-3 text-ink-muted">{f.field}</td>
                         <td className="py-2.5 pr-3 text-ink">{f.genai}</td>
@@ -172,10 +189,10 @@ export function ProductTabs() {
                 </table>
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <Check2 label="Policy result" ok={c.validationDetail.policyValidated} detail={c.policy?.id} />
-                <Check2 label="Resolution result" ok={c.validationDetail.resolutionValidated} />
-                <Check2 label="Routing result" ok detail={c.department} />
-                <Check2 label="Escalation result" ok detail={c.escalationAssessment.level} />
+                <Check2 label="Policy result" ok={detail.policyValidated} detail={c.policy?.id} />
+                <Check2 label="Resolution result" ok={detail.resolutionValidated} />
+                <Check2 label="Routing result" ok detail={c.department ?? undefined} />
+                <Check2 label="Escalation result" ok detail={escalation.level ?? undefined} />
               </div>
             </div>
           )}
@@ -212,7 +229,7 @@ export function ProductTabs() {
               <div className="space-y-4">
                 <div className="rounded-md border border-line bg-canvas-subtle p-3">
                   <Label>Customer response</Label>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink-secondary">{c.intelligence.generatedResponse}</p>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-ink-secondary">{intel.generatedResponse}</p>
                 </div>
                 <div>
                   <Label>Follow-up</Label>

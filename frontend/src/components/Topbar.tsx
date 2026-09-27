@@ -10,7 +10,7 @@ import { cn } from "@/utils/cn";
 
 export function Topbar() {
   const { user, logout } = useAuth();
-  const { complaints, customers, articles, notifications, markNotificationRead, markAllNotificationsRead } =
+  const { complaints, articles, notifications, markNotificationRead, markAllNotificationsRead } =
     useData();
   const { openMobile } = useUi();
   const navigate = useNavigate();
@@ -51,15 +51,11 @@ export function Topbar() {
         sub: c.subject,
         to: `/complaints/${c.id}`,
       }));
-    const customerHits = customers
-      .filter((c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.reference ?? "").toLowerCase().includes(q))
-      .slice(0, 4)
-      .map((c) => ({
-        type: "Customer",
-        label: c.name,
-        sub: c.email,
-        to: `/complaints?q=${encodeURIComponent(c.name)}`,
-      }));
+    /*
+     * There is no customer-directory endpoint, so search covers
+     * the complaints the signed-in user can actually see plus the
+     * help centre. Nothing is matched against sample people.
+     */
     const articleHits = articles
       .filter((a) => a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q))
       .slice(0, 3)
@@ -69,8 +65,8 @@ export function Topbar() {
         sub: a.category,
         to: `/help-center/${a.id}`,
       }));
-    return [...ticketHits, ...customerHits, ...articleHits];
-  }, [query, complaints, customers, articles]);
+    return [...ticketHits, ...articleHits];
+  }, [query, complaints, articles]);
 
   const unread = notifications.filter((n) => !n.read).length;
   if (!user) return null;
@@ -95,7 +91,7 @@ export function Topbar() {
             setSearchOpen(true);
           }}
           onFocus={() => setSearchOpen(true)}
-          placeholder="Search complaints, customers, or IDs..."
+          placeholder="Search complaints, articles, or IDs..."
           className="h-8 w-full rounded-md border border-line bg-canvas-subtle pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-faint hover:border-line-strong focus:border-primary focus:bg-surface"
         />
         {searchOpen && query.trim().length >= 2 && (
@@ -158,6 +154,13 @@ export function Topbar() {
                   </button>
                 )}
               </div>
+              {notifications.length === 0 && (
+                <p className="px-3 py-4 text-[12px] text-ink-muted">
+                  No notifications. SupportNova does not store
+                  notifications yet, so only events from this
+                  session appear here.
+                </p>
+              )}
               <ul className="max-h-80 overflow-y-auto">
                 {notifications.slice(0, 8).map((n) => (
                   <li key={n.id}>

@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
+  Building2,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -61,7 +62,8 @@ const staffSections: Section[] = [
   {
     label: "Administration",
     items: [
-      { to: "/users", label: "Users", icon: Users, roles: ["Admin"] },
+      { to: "/users", label: "Staff & Users", icon: Users, roles: ["Admin"] },
+      { to: "/departments", label: "Departments", icon: Building2, roles: ["Admin"] },
       { to: "/rules", label: "Rules", icon: Shield, roles: ["Admin"] },
       { to: "/documents", label: "Documents", icon: FileStack, roles: ["Admin"] },
       { to: "/audit-logs", label: "Audit Logs", icon: ScrollText, roles: ["Admin"] },

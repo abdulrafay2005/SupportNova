@@ -1,129 +1,197 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowRight, SearchX } from "lucide-react";
+import { ArrowRight, Lock, SearchX } from "lucide-react";
 import { SiteShell } from "@/components/PublicHeader";
 import { buttonStyles } from "@/components/Button";
-import { TrackingCard, latestUpdateFor } from "@/components/marketing/TrackingCard";
+import {
+  TrackingCard,
+  latestUpdateFor,
+} from "@/components/marketing/TrackingCard";
+import { useAuth } from "@/auth/AuthContext";
 import { useData } from "@/context/DataContext";
 import { customerNextStep } from "@/utils/classify";
 import { formatDateTime } from "@/utils/dates";
 
-const ID_PATTERN = /^SN-\d{6}$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+/**
+ * Track a complaint.
+ *
+ * SupportNova has no anonymous tracking endpoint: a complaint can
+ * only be read by the account that submitted it (or by staff), and
+ * the API enforces that. This page therefore looks a complaint up
+ * in the signed-in customer's own complaints — real data from
+ * GET /api/complaints — and asks anonymous visitors to sign in
+ * rather than pretending an ID-plus-email lookup exists.
+ */
 export function Track() {
-  const { complaints, getCustomer } = useData();
+  const { user } = useAuth();
+  const { complaints, loadingComplaints, complaintError } = useData();
+
   const [params, setParams] = useSearchParams();
-  const initialId = (params.get("id") ?? "").toUpperCase();
+  const initialId = params.get("id") ?? "";
 
   const [idValue, setIdValue] = useState(initialId);
-  const [emailValue, setEmailValue] = useState("");
-  const [errors, setErrors] = useState<{ id?: string; email?: string; lookup?: string }>({});
-  const [result, setResult] = useState<{ id: string; email: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState<string | null>(
+    initialId || null,
+  );
 
   useEffect(() => setIdValue(initialId), [initialId]);
 
-  const found = result
-    ? complaints.find((c) => {
-        if (c.id !== result.id) return false;
-        const customer = getCustomer(c.customerId);
-        const complaintEmail = customer?.email;
-        return complaintEmail?.toLowerCase() === result.email.toLowerCase();
-      })
+  const normalized = (query ?? "").trim().toLowerCase();
+
+  const found = normalized
+    ? complaints.find(
+        (c) =>
+          c.id.toLowerCase() === normalized ||
+          c.id.toLowerCase().endsWith(normalized),
+      )
     : undefined;
+
+  const notFound = Boolean(query) && !loadingComplaints && !found;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const id = idValue.trim().toUpperCase();
-    const email = emailValue.trim();
-    const next: { id?: string; email?: string } = {};
-    if (!id) next.id = "Enter your complaint ID.";
-    else if (!ID_PATTERN.test(id)) next.id = "Complaint IDs look like SN-000124.";
-    if (!email) next.email = "Enter the email you submitted with.";
-    else if (!EMAIL_PATTERN.test(email)) next.email = "Enter a valid email.";
-    setErrors(next);
-    if (Object.keys(next).length) {
-      setResult(null);
+
+    const id = idValue.trim();
+
+    if (!id) {
+      setError("Enter the complaint ID shown when you submitted.");
+      setQuery(null);
       return;
     }
-    setParams({ id });
-    setResult({ id, email });
-  };
 
-  const notFound = result && !found;
+    setError(null);
+    setParams({ id });
+    setQuery(id);
+  };
 
   return (
     <SiteShell>
       <section className="border-b border-line bg-surface">
         <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-primary">Track a complaint</p>
-          <h1 className="mt-3 text-[30px] font-semibold tracking-tight text-ink sm:text-[36px]">Where is my complaint?</h1>
-          <p className="mt-3 text-[15px] text-ink-secondary">
-            Enter your complaint ID and the email you submitted with to see the current status, who is handling it and what happens next.
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-primary">
+            Track a complaint
           </p>
-          <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
-            <div>
-              <label htmlFor="track-id" className="text-[13px] font-medium text-ink-secondary">
-                Complaint ID
-              </label>
-              <input
-                id="track-id"
-                value={idValue}
-                onChange={(e) => setIdValue(e.target.value)}
-                placeholder="SN-000124"
-                aria-invalid={Boolean(errors.id)}
-                aria-describedby={errors.id ? "track-id-error" : undefined}
-                className="mt-1.5 h-11 w-full rounded-md border border-line-strong bg-surface px-3 font-mono text-[15px] text-ink placeholder:text-ink-faint focus:border-primary"
-              />
-              {errors.id && (
-                <p id="track-id-error" className="mt-1.5 text-[13px] text-danger">
-                  {errors.id}
-                </p>
-              )}
+
+          <h1 className="mt-3 text-[30px] font-semibold tracking-tight text-ink sm:text-[36px]">
+            Where is my complaint?
+          </h1>
+
+          <p className="mt-3 text-[15px] text-ink-secondary">
+            Complaints are private to the account that raised them, so
+            tracking happens inside your account. Sign in and enter your
+            complaint ID to see its current status, the department handling
+            it and what happens next.
+          </p>
+
+          {!user ? (
+            <div className="mt-8 rounded-md border border-line bg-canvas-subtle p-5">
+              <p className="flex items-center gap-2 text-[14px] font-medium text-ink">
+                <Lock size={15} aria-hidden />
+                Sign in to track your complaint
+              </p>
+
+              <p className="mt-1 text-[13px] text-ink-secondary">
+                We never expose complaint details to an ID-and-email lookup.
+                Signing in keeps your complaint, the messages on it and your
+                personal details private.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link to="/login" className={buttonStyles("primary", "md")}>
+                  Sign in
+                </Link>
+
+                <Link to="/register" className={buttonStyles("outline", "md")}>
+                  Create an account
+                </Link>
+              </div>
             </div>
-            <div>
-              <label htmlFor="track-email" className="text-[13px] font-medium text-ink-secondary">
-                Email used when submitting
-              </label>
-              <input
-                id="track-email"
-                type="email"
-                value={emailValue}
-                onChange={(e) => setEmailValue(e.target.value)}
-                placeholder="ayesha.khan@example.com"
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={errors.email ? "track-email-error" : undefined}
-                className="mt-1.5 h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-[15px] text-ink placeholder:text-ink-faint focus:border-primary"
-              />
-              {errors.email && (
-                <p id="track-email-error" className="mt-1.5 text-[13px] text-danger">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-            <button type="submit" className={buttonStyles("primary", "lg")}>
-              Track complaint
-            </button>
-          </form>
+          ) : (
+            <form onSubmit={onSubmit} className="mt-8 space-y-4" noValidate>
+              <div>
+                <label
+                  htmlFor="track-id"
+                  className="text-[13px] font-medium text-ink-secondary"
+                >
+                  Complaint ID
+                </label>
+
+                <input
+                  id="track-id"
+                  value={idValue}
+                  onChange={(e) => setIdValue(e.target.value)}
+                  placeholder="Paste the ID from your confirmation"
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={error ? "track-id-error" : undefined}
+                  className="mt-1.5 h-11 w-full rounded-md border border-line-strong bg-surface px-3 font-mono text-[15px] text-ink placeholder:text-ink-faint focus:border-primary"
+                />
+
+                {error && (
+                  <p
+                    id="track-id-error"
+                    className="mt-1.5 text-[13px] text-danger"
+                  >
+                    {error}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button type="submit" className={buttonStyles("primary", "lg")}>
+                  Track complaint
+                </button>
+
+                <Link
+                  to="/my-complaints"
+                  className={buttonStyles("outline", "lg")}
+                >
+                  See all my complaints
+                </Link>
+              </div>
+            </form>
+          )}
         </div>
       </section>
 
       <section className="bg-canvas">
         <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-          {!result && (
+          {complaintError && (
+            <p className="mb-4 rounded border border-danger/30 p-3 text-[13px] text-danger">
+              {complaintError}
+            </p>
+          )}
+
+          {user && loadingComplaints && (
             <p className="text-[14px] text-ink-muted">
-              Your complaint ID and the email you used were both shown after you submitted, and in the confirmation we sent you.
+              Loading your complaints…
+            </p>
+          )}
+
+          {user && !query && !loadingComplaints && (
+            <p className="text-[14px] text-ink-muted">
+              Your complaint ID was shown after you submitted and is listed
+              against every complaint in your account.
             </p>
           )}
 
           {notFound && (
             <div className="panel flex flex-col items-center px-6 py-12 text-center">
               <SearchX size={22} className="text-ink-muted" aria-hidden />
-              <h2 className="mt-3 text-[16px] font-semibold text-ink">We couldn't find a match</h2>
+
+              <h2 className="mt-3 text-[16px] font-semibold text-ink">
+                No complaint with that ID in your account
+              </h2>
+
               <p className="mt-1 max-w-sm text-[14px] text-ink-muted">
-                Check the ID and the email you used, and try again. If it still doesn't appear, contact us and we'll look into it.
+                Check the ID and try again. If the complaint was raised from a
+                different account, sign in with that account instead.
               </p>
-              <Link to="/contact" className={buttonStyles("outline", "md", "mt-5")}>
+
+              <Link
+                to="/contact"
+                className={buttonStyles("outline", "md", "mt-5")}
+              >
                 Contact support
               </Link>
             </div>
@@ -132,25 +200,43 @@ export function Track() {
           {found && (
             <div className="fade-in grid gap-6 md:grid-cols-[1.2fr_1fr]">
               <TrackingCard complaint={found} />
+
               <div className="space-y-4">
                 <div className="panel p-5">
-                  <h2 className="text-[14px] font-semibold text-ink">Current status</h2>
-                  <p className="mt-1 text-[20px] font-semibold text-secondary-dark">{found.status}</p>
-                  <p className="mt-2 text-[13px] text-ink-muted">{customerNextStep(found.status)}</p>
+                  <h2 className="text-[14px] font-semibold text-ink">
+                    Current status
+                  </h2>
+
+                  <p className="mt-1 text-[20px] font-semibold text-secondary-dark">
+                    {found.status}
+                  </p>
+
+                  <p className="mt-2 text-[13px] text-ink-muted">
+                    {customerNextStep(found.status)}
+                  </p>
                 </div>
+
                 <div className="panel p-5">
-                  <h2 className="text-[14px] font-semibold text-ink">Latest update</h2>
-                  <p className="mt-1 text-[14px] text-ink-secondary">{latestUpdateFor(found)}</p>
-                  <p className="mt-1 text-[12px] text-ink-faint">{formatDateTime(found.updatedAt)}</p>
+                  <h2 className="text-[14px] font-semibold text-ink">
+                    Latest update
+                  </h2>
+
+                  <p className="mt-1 text-[14px] text-ink-secondary">
+                    {latestUpdateFor(found) ??
+                      "Open the complaint to see its full history."}
+                  </p>
+
+                  <p className="mt-1 text-[12px] text-ink-faint">
+                    {formatDateTime(found.updatedAt)}
+                  </p>
                 </div>
-                {found.followUp?.required && found.followUp.type && (
-                  <div className="panel p-5">
-                    <h2 className="text-[14px] font-semibold text-ink">What to expect</h2>
-                    <p className="mt-1 text-[14px] text-ink-secondary">{found.followUp.type}</p>
-                  </div>
-                )}
-                <Link to={`/complaints/${found.id}`} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-primary hover:text-secondary-dark">
-                  View complaint details <ArrowRight size={15} aria-hidden />
+
+                <Link
+                  to={`/complaints/${found.id}`}
+                  className="inline-flex items-center gap-1.5 text-[14px] font-medium text-primary hover:text-secondary-dark"
+                >
+                  View complaint details{" "}
+                  <ArrowRight size={15} aria-hidden />
                 </Link>
               </div>
             </div>

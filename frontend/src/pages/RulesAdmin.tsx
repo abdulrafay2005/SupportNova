@@ -1,109 +1,61 @@
-import { useMemo, useState } from "react";
+import { Shield } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
-import { SearchBar } from "@/components/SearchBar";
-import { useData } from "@/context/DataContext";
-import { cn } from "@/utils/cn";
 
+/**
+ * Routing and escalation rules.
+ *
+ * The rule matrix is owned by the deterministic rule engine and
+ * lives in the `ml/data` CSV files that ship with the backend. The
+ * API exposes no endpoint for reading or editing those rules, so
+ * there is nothing real to render here.
+ *
+ * This page previously displayed a hand-written sample matrix with
+ * an enable/disable switch that only mutated browser state. That
+ * gave the impression an administrator could change live routing,
+ * which was not true, so it has been removed rather than left in
+ * place as decoration.
+ */
 export function RulesAdmin() {
-  const { rules, toggleRule } = useData();
-  const [query, setQuery] = useState("");
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rules;
-    return rules.filter((r) =>
-      `${r.id} ${r.category} ${r.subcategory} ${r.condition} ${r.department} ${r.policy}`.toLowerCase().includes(q),
-    );
-  }, [rules, query]);
-
   return (
     <div>
       <PageHeader
-        title="Complaint resolution rules"
-        description="Display of the rule matrix used for routing and escalation. Rules are not executed in this build."
+        title="Routing & escalation rules"
+        description="Rules that decide category, department, priority and escalation for every complaint."
       />
-      <div className="mb-3 max-w-sm">
-        <SearchBar value={query} onChange={setQuery} placeholder="Search rule, category, department..." />
-      </div>
-      <div className="panel hidden overflow-hidden md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-[13px]">
-            <thead>
-              <tr className="border-b border-line bg-canvas-subtle text-[11px] uppercase tracking-wide text-ink-muted">
-                <th className="px-3 py-2 font-medium">Rule ID</th>
-                <th className="px-3 py-2 font-medium">Category</th>
-                <th className="px-3 py-2 font-medium">Subcategory</th>
-                <th className="px-3 py-2 font-medium">Condition</th>
-                <th className="px-3 py-2 font-medium">Department</th>
-                <th className="px-3 py-2 font-medium">Urgency</th>
-                <th className="px-3 py-2 font-medium">Priority</th>
-                <th className="px-3 py-2 font-medium">Policy</th>
-                <th className="px-3 py-2 font-medium">Escalation</th>
-                <th className="px-3 py-2 font-medium">Follow-up</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas-subtle">
-                  <td className="px-3 py-2 font-mono text-[12px]">{r.id}</td>
-                  <td className="px-3 py-2">{r.category}</td>
-                  <td className="px-3 py-2">{r.subcategory}</td>
-                  <td className="max-w-[200px] px-3 py-2 text-ink-secondary">{r.condition}</td>
-                  <td className="px-3 py-2">{r.department}</td>
-                  <td className="px-3 py-2">{r.urgency}</td>
-                  <td className="px-3 py-2">{r.priority}</td>
-                  <td className="px-3 py-2 font-mono text-[12px]">{r.policy}</td>
-                  <td className="px-3 py-2 text-ink-secondary">{r.escalation}</td>
-                  <td className="px-3 py-2 text-ink-secondary">{r.followUp}</td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleRule(r.id)}
-                      className={cn(
-                        "rounded border px-1.5 py-px text-[11px] font-medium",
-                        r.status === "Active"
-                          ? "border-success-muted bg-success-subtle text-success"
-                          : "border-line bg-canvas text-ink-muted",
-                      )}
-                    >
-                      {r.status}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="space-y-2 md:hidden">
-        {filtered.map((r) => (
-          <div key={r.id} className="panel p-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-mono text-[11px] text-ink-faint">{r.id}</p>
-                <p className="text-[13px] font-medium text-ink">
-                  {r.category} · {r.subcategory}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleRule(r.id)}
-                className={cn(
-                  "rounded border px-1.5 py-px text-[11px] font-medium",
-                  r.status === "Active"
-                    ? "border-success-muted bg-success-subtle text-success"
-                    : "border-line bg-canvas text-ink-muted",
-                )}
-              >
-                {r.status}
-              </button>
-            </div>
-            <p className="mt-2 text-[12px] text-ink-secondary">{r.condition}</p>
-            <p className="mt-1 text-[12px] text-ink-muted">
-              {r.department} · {r.escalation}
-            </p>
-          </div>
-        ))}
+
+      <EmptyState
+        icon={<Shield size={18} />}
+        title="Rules are not exposed through the API"
+        description="Routing, escalation and resolution rules are evaluated by the backend rule engine from its own data files. SupportNova has no endpoint for reading or editing them, so no rule list can be shown here. The effect of the rules is visible on each complaint: the department it was routed to, the priority it was given and whether it was escalated."
+      />
+
+      <div className="panel mt-4 px-4 py-4">
+        <h2 className="text-[13px] font-semibold text-ink">
+          Where rule behaviour is visible today
+        </h2>
+
+        <ul className="mt-2 space-y-1.5 text-[13px] text-ink-secondary">
+          <li>
+            <span className="font-medium text-ink">Departments</span> — the
+            routing targets the engine can emit, with the agents attached to
+            each one.
+          </li>
+          <li>
+            <span className="font-medium text-ink">Complaint detail</span> —
+            the category, department, priority and escalation the engine
+            produced for an individual complaint.
+          </li>
+          <li>
+            <span className="font-medium text-ink">Manual review</span> —
+            complaints the validation step could not confirm, with the
+            reasons it recorded.
+          </li>
+          <li>
+            <span className="font-medium text-ink">Audit logs</span> — every
+            routing and assignment decision that was actually persisted.
+          </li>
+        </ul>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { NotAvailable } from "@/components/NotAvailable";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Complaint } from "@/types";
 import { customerNextStep } from "@/utils/classify";
@@ -8,7 +9,13 @@ import { cn } from "@/utils/cn";
 type StepState = "done" | "current" | "upcoming";
 
 export function trackingSteps(c: Complaint): { label: string; state: StepState }[] {
-  const labels = ["Submitted", "Analyzed", `Assigned to ${c.department}`, "Under review", "Resolution"];
+  const labels = [
+    "Submitted",
+    "Analyzed",
+    c.department ? `Assigned to ${c.department}` : "Assigned to a department",
+    "Under review",
+    "Resolution",
+  ];
   const reached =
     c.status === "New" ? 1 : c.status === "Analyzed" ? 2 : c.status === "Resolved" || c.status === "Closed" ? 5 : 3;
   return labels.map((label, i) => ({
@@ -20,7 +27,12 @@ export function trackingSteps(c: Complaint): { label: string; state: StepState }
 export function latestUpdateFor(c: Complaint) {
   if (c.latestUpdate) return c.latestUpdate;
   const visible = c.timeline.filter((e) => e.type !== "note");
-  return visible[visible.length - 1]?.title ?? "Complaint received";
+  /*
+   * The list endpoint carries no activity history; the complaint
+   * page loads the persisted timeline. Nothing is invented here
+   * when there is no event to show.
+   */
+  return visible[visible.length - 1]?.title ?? null;
 }
 
 export function TrackingCard({ complaint, className }: { complaint: Complaint; className?: string }) {
@@ -70,11 +82,15 @@ export function TrackingCard({ complaint, className }: { complaint: Complaint; c
       <dl className="grid gap-px border-t border-line bg-line sm:grid-cols-2">
         <div className="bg-surface px-5 py-3">
           <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Current department</dt>
-          <dd className="mt-0.5 text-[13px] font-medium text-ink">{complaint.department}</dd>
+          <dd className="mt-0.5 text-[13px] font-medium text-ink">
+            {complaint.department ?? <NotAvailable />}
+          </dd>
         </div>
         <div className="bg-surface px-5 py-3">
           <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Latest update</dt>
-          <dd className="mt-0.5 text-[13px] text-ink-secondary">{latestUpdateFor(complaint)}</dd>
+          <dd className="mt-0.5 text-[13px] text-ink-secondary">
+            {latestUpdateFor(complaint) ?? <NotAvailable />}
+          </dd>
         </div>
       </dl>
       <div className="border-t border-line bg-primary-subtle px-5 py-3">

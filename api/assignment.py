@@ -52,15 +52,25 @@ def auto_assign_complaint(
     agent exists (the complaint then stays unassigned and awaits
     manual assignment — nothing is fabricated).
     """
-    candidates = list(users_collection.find({
-        "role": "Agent",
-        "status": "Active",
-        "department": department,
-    })) if department else []
-
-    source = "automatic-department-match"
-
-    if not candidates:
+    # --------------------------------------------------------
+    # Department routing is authoritative.
+    #
+    # When the classification engine determined a department, the
+    # complaint may ONLY go to an active agent of that department.
+    # It is never handed to an agent of another department: an
+    # unassigned complaint with an honest "awaiting manual
+    # assignment" activity is correct, a wrong-department owner is
+    # not. The cross-department search is kept only for complaints
+    # that carry no department at all.
+    # --------------------------------------------------------
+    if department:
+        candidates = list(users_collection.find({
+            "role": "Agent",
+            "status": "Active",
+            "department": department,
+        }))
+        source = "automatic-department-match"
+    else:
         candidates = list(users_collection.find({
             "role": "Agent",
             "status": "Active",
@@ -75,8 +85,13 @@ def auto_assign_complaint(
             activity_type="routed",
             title="Awaiting manual assignment",
             description=(
-                "No active agent was available for automatic "
-                "assignment."
+                f"No active agent is available in "
+                f"{department}."
+                if department
+                else (
+                    "No active agent was available for automatic "
+                    "assignment."
+                )
             ),
             metadata={"department": department},
         )

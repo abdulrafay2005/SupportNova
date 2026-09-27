@@ -23,6 +23,7 @@ import { AuditLogs } from "@/pages/AuditLogs";
 import { ComplaintDetail } from "@/pages/ComplaintDetail";
 import { Complaints } from "@/pages/Complaints";
 import { Dashboard } from "@/pages/Dashboard";
+import { DepartmentsAdmin } from "@/pages/DepartmentsAdmin";
 import { Documents } from "@/pages/Documents";
 import { ForgotPassword } from "@/pages/ForgotPassword";
 import { Home } from "@/pages/Home";
@@ -159,27 +160,6 @@ export default function App() {
                 />
 
                 {/* =====================
-                    COMPLAINT DETAIL
-                    All authenticated roles
-                ====================== */}
-
-                <Route
-                  element={
-                    <RoleRoute
-                      roles={[
-                        "Customer",
-                        "Agent",
-                        "Reviewer",
-                        "Manager",
-                        "Admin",
-                      ]}
-                    />
-                  }
-                >
-                  
-                </Route>
-
-                {/* =====================
                     CUSTOMER
                 ====================== */}
 
@@ -295,6 +275,11 @@ export default function App() {
                   <Route
                     path="/users"
                     element={<UsersAdmin />}
+                  />
+
+                  <Route
+                    path="/departments"
+                    element={<DepartmentsAdmin />}
                   />
 
                   <Route

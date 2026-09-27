@@ -1,4 +1,5 @@
 import type { GroundTruthValidation, ValidationState } from "@/types";
+import { NotAvailable } from "@/components/NotAvailable";
 import { cn } from "@/utils/cn";
 
 const stateStyle: Record<ValidationState, string> = {
@@ -8,7 +9,9 @@ const stateStyle: Record<ValidationState, string> = {
   "Manual Review Required": "text-warning bg-warning-subtle border-warning-muted",
 };
 
-export function ValidationBadge({ state }: { state: ValidationState }) {
+export function ValidationBadge({ state }: { state: ValidationState | null | undefined }) {
+  if (!state) return <NotAvailable />;
+
   return (
     <span
       className={cn(
@@ -21,13 +24,26 @@ export function ValidationBadge({ state }: { state: ValidationState }) {
   );
 }
 
-export function ValidationResult({ detail }: { detail: GroundTruthValidation }) {
+export function ValidationResult({ detail }: { detail: GroundTruthValidation | null }) {
+  if (!detail) {
+    return (
+      <div className="panel px-4 py-4">
+        <h3 className="text-[13px] font-semibold text-ink">
+          Ground-truth validation
+        </h3>
+        <p className="mt-1 text-[13px] text-ink-muted">
+          No validation record is stored for this complaint.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="panel overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
         <div>
           <h3 className="text-[13px] font-semibold text-ink">Ground-truth validation</h3>
-          <p className="text-[12px] text-ink-muted">GenAI output compared with the Python validation pipeline. Demo records.</p>
+          <p className="text-[12px] text-ink-muted">GenAI output compared with the Python validation pipeline.</p>
         </div>
         <ValidationBadge state={detail.overall} />
       </div>

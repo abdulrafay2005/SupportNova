@@ -3,15 +3,30 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { UrgencyBadge } from "@/components/UrgencyBadge";
-import { useData } from "@/context/DataContext";
+import { exampleComplaints, exampleCustomers } from "@/data/mockData";
 import { OPEN_STATUSES } from "@/types";
 import { cn } from "@/utils/cn";
 
 /** A read-only rendering of the agent workspace, built from the same records as the app. */
+/*
+ * Public marketing preview.
+ *
+ * This renders a fixed illustrative record from
+ * `@/data/mockData`, NOT live data. It deliberately no longer
+ * reads DataContext: the landing page is public, and the signed-in
+ * user's real complaints must never be rendered as marketing
+ * material.
+ */
 export function AgentWorkspace() {
-  const { complaints, getCustomer } = useData();
+  const complaints = exampleComplaints;
+  const getCustomer = (id: string) =>
+    exampleCustomers.find((customer) => customer.id === id);
   const c = complaints.find((x) => x.id === "SN-000124");
   if (!c) return null;
+
+  const intel = c.intelligence;
+  const escalation = c.escalationAssessment;
+  if (!intel || !escalation) return null;
   const queue = complaints.filter((x) => x.assigneeId === "u-nora" && OPEN_STATUSES.includes(x.status)).slice(0, 4);
   const customer = getCustomer(c.customerId);
 
@@ -71,8 +86,8 @@ export function AgentWorkspace() {
           <div className="grid xl:grid-cols-[1fr_240px]">
             <div className="space-y-4 px-5 py-4">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Mini label="Category" value={c.category} />
-                <Mini label="Department" value={c.department} />
+                <Mini label="Category" value={c.category ?? "Not available"} />
+                <Mini label="Department" value={c.department ?? "Not available"} />
                 <div>
                   <MiniLabel>Priority</MiniLabel>
                   <div className="mt-1"><PriorityBadge priority={c.priority} /></div>
@@ -117,7 +132,7 @@ export function AgentWorkspace() {
                   <MiniLabel>Customer response · draft</MiniLabel>
                   <span className="rounded bg-primary px-2 py-0.5 text-[11px] font-medium text-white">Review & send</span>
                 </div>
-                <p className="px-3 py-2.5 text-[13px] leading-relaxed text-ink-secondary">{c.intelligence.generatedResponse}</p>
+                <p className="px-3 py-2.5 text-[13px] leading-relaxed text-ink-secondary">{intel.generatedResponse}</p>
               </div>
             </div>
 
@@ -125,14 +140,14 @@ export function AgentWorkspace() {
               <div>
                 <MiniLabel>Agent guidance</MiniLabel>
                 <ul className="mt-1.5 space-y-2">
-                  {c.intelligence.agentGuidance.map((g) => (
+                  {intel.agentGuidance.map((g) => (
                     <li key={g} className="text-[12px] leading-snug text-ink-secondary">{g}</li>
                   ))}
                 </ul>
               </div>
               <div>
                 <MiniLabel>Escalation</MiniLabel>
-                <p className="mt-1 text-[12px] text-ink">{c.escalationAssessment.level}</p>
+                <p className="mt-1 text-[12px] text-ink">{escalation.level}</p>
               </div>
               <div>
                 <MiniLabel>Follow-up</MiniLabel>

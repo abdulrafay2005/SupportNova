@@ -95,18 +95,31 @@ export const OPEN_STATUSES: ComplaintStatus[] = [
   "Manual Review",
 ];
 
+/**
+ * The signed-in account, as returned by GET /api/auth/me.
+ *
+ * Optional fields are optional because the API does not always
+ * store them — they are reported as unavailable, never defaulted.
+ */
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
-  status: UserStatus;
-  lastActive: string;
-  createdAt: string;
+  status?: UserStatus;
+  createdAt?: string;
   department?: string;
   phone?: string;
 }
 
+/**
+ * A customer as shown next to a complaint.
+ *
+ * `joinedAt` and `openComplaints` are only known when the viewer
+ * is the customer themselves; the complaint detail endpoint
+ * returns identity fields only, so they are optional and rendered
+ * as unavailable rather than as zero.
+ */
 export interface Customer {
   id: string;
   name: string;
@@ -115,8 +128,8 @@ export interface Customer {
   company?: string;
   reference?: string;
   customerType?: string;
-  joinedAt: string;
-  openComplaints: number;
+  joinedAt?: string;
+  openComplaints?: number;
 }
 
 export interface FieldValidation {
@@ -127,7 +140,7 @@ export interface FieldValidation {
 }
 
 export interface GroundTruthValidation {
-  overall: ValidationState;
+  overall: ValidationState | null;
   fields: FieldValidation[];
   policyValidated: boolean;
   resolutionValidated: boolean;
@@ -146,9 +159,9 @@ export interface PolicyRef {
 
 export interface EscalationAssessment {
   required: boolean;
-  level: EscalationLevel;
+  level: EscalationLevel | null;
   reason: string;
-  validation: ValidationState;
+  validation: ValidationState | null;
   notes?: string;
 }
 
@@ -176,14 +189,14 @@ export interface Intelligence {
   summary: string;
   primaryIssue: string;
   secondaryIssues: string[];
-  category: string;
-  subcategory: string;
-  sentiment: Sentiment;
-  urgency: Urgency;
-  priority: Priority;
-  productService: string;
+  category: string | null;
+  subcategory: string | null;
+  sentiment: Sentiment | null;
+  urgency: Urgency | null;
+  priority: Priority | null;
+  productService: string | null;
   entities: string[];
-  department: string;
+  department: string | null;
   supportingDepartment?: string;
   escalation: boolean;
   reason: string;
@@ -203,21 +216,34 @@ export interface TimelineEvent {
   actorRole: Role | "System";
 }
 
+/**
+ * A complaint as the frontend knows it.
+ *
+ * Fields that the backend does not always produce are nullable on
+ * purpose. `null` means "the backend has no value for this" and the
+ * UI must render an honest placeholder — it must never be replaced
+ * with a default such as "Neutral", "P3" or "Unassigned", because
+ * that would present an invented value as if it were analysis
+ * output.
+ */
 export interface Complaint {
   id: string;
   subject: string;
   description: string;
   customerId: string;
-  category: string;
-  subcategory: string;
-  department: string;
-  productService: string;
-  priority: Priority;
-  urgency: Urgency;
-  sentiment: Sentiment;
+  /** From the stored analysis document. `null` when not analyzed. */
+  category: string | null;
+  subcategory: string | null;
+  /** Persisted `assigned_department`. `null` until routing runs. */
+  department: string | null;
+  productService: string | null;
+  /** Rule-engine priority, persisted on the complaint. */
+  priority: Priority | null;
+  urgency: Urgency | null;
+  sentiment: Sentiment | null;
   status: ComplaintStatus;
   escalated: boolean;
-  validation: ValidationState;
+  validation: ValidationState | null;
   assigneeId?: string;
   createdAt: string;
   updatedAt: string;
@@ -226,10 +252,11 @@ export interface Complaint {
   customerType?: string;
   previousComplaintId?: string;
   attachmentName?: string;
-  intelligence: Intelligence;
+  /** Full analysis payload. Only loaded on the detail page. */
+  intelligence: Intelligence | null;
   policy?: PolicyRef;
-  validationDetail: GroundTruthValidation;
-  escalationAssessment: EscalationAssessment;
+  validationDetail: GroundTruthValidation | null;
+  escalationAssessment: EscalationAssessment | null;
   resolutionPlan?: ResolutionPlan;
   followUp?: FollowUp;
   missingInfo?: MissingInfo;
@@ -273,16 +300,6 @@ export interface RoutingRule {
   updatedAt: string;
 }
 
-export interface AuditLog {
-  id: string;
-  timestamp: string;
-  user: string;
-  action: string;
-  resource: string;
-  result: "Success" | "Failed";
-  details: string;
-}
-
 export interface NotificationItem {
   id: string;
   title: string;
@@ -315,11 +332,4 @@ export interface PolicyDocument {
   status: DocumentStatus;
   uploadedAt: string;
   format: "PDF" | "DOCX";
-}
-
-export interface ReportDefinition {
-  id: string;
-  title: string;
-  category: string;
-  description: string;
 }

@@ -1,4 +1,5 @@
 import { PRIORITY_LABEL, type Priority } from "@/types";
+import { NotAvailable } from "@/components/NotAvailable";
 import { cn } from "@/utils/cn";
 
 const styles: Record<Priority, string> = {
@@ -15,7 +16,10 @@ const dots: Record<Priority, string> = {
   P0: "bg-danger",
 };
 
-export function PriorityBadge({ priority }: { priority: Priority }) {
+export function PriorityBadge({ priority }: { priority: Priority | null | undefined }) {
+  /* No rule-engine priority was persisted for this complaint. */
+  if (!priority) return <NotAvailable />;
+
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-[12px] font-medium whitespace-nowrap", styles[priority])}>
       <span className={cn("h-1.5 w-1.5 rounded-full", dots[priority])} />

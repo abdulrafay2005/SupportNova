@@ -17,11 +17,11 @@ interface BackendUser {
   name: string;
   email: string;
   role: string;
-  status?: User["status"];
+  status?: User["status"] | null;
+  department?: string | null;
   phone?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  last_active?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface BackendAuthResponse {
@@ -48,18 +48,23 @@ function normalizeRole(role: string): Role {
   }
 }
 
+/**
+ * Backend user -> frontend user.
+ *
+ * Only stored values are carried across. The API tracks no
+ * "last active" timestamp, so the profile reports that rather than
+ * showing the current time as if it were a real signal.
+ */
 export function normalizeUser(user: BackendUser): User {
-  const now = new Date().toISOString();
-
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: normalizeRole(user.role),
-    status: user.status ?? "Active",
+    status: user.status ?? undefined,
+    department: user.department ?? undefined,
     phone: user.phone ?? undefined,
-    lastActive: user.last_active ?? now,
-    createdAt: user.created_at ?? now,
+    createdAt: user.created_at ?? undefined,
   };
 }
 

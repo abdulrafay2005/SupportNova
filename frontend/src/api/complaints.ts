@@ -1,5 +1,4 @@
-import type { Complaint, ComplaintDraft, Intelligence } from "@/types";
-import { nextComplaintId } from "@/utils/classify";
+import type { ComplaintDraft } from "@/types";
 import { api } from "@/api/client";
 
 /**
@@ -79,6 +78,22 @@ export interface CreateComplaintResponse {
   agent_guidance: string;
 
   clarification_questions: string[];
+
+  /**
+   * Deterministic rule-engine priority, attached by the API when
+   * the rule engine produced one. Absent otherwise — the frontend
+   * must not substitute a default.
+   */
+  priority?: string | null;
+
+  /** Ground-truth validation outcome for this analysis. */
+  validation?: {
+    status?: string | null;
+    manual_review_required?: boolean;
+    reasons?: string[];
+  };
+
+  manual_review_required?: boolean;
 
   /**
    * PERSISTED workflow state after backend routing
@@ -217,117 +232,4 @@ export async function customerRespond(
   }>(`/api/complaints/${complaintId}/respond`, { message });
 
   return response.data;
-}
-
-/**
- * Temporary frontend fallback used by the existing mock UI.
- * Keep this until the DataContext is switched to the real API.
- */
-const pendingIntelligence = (
-  subject: string,
-  product?: string,
-): Intelligence => ({
-  summary:
-    "Analysis has not been produced yet. Results will come from the processing pipeline.",
-  primaryIssue: subject.trim() || "Unclassified",
-  secondaryIssues: [],
-  category: "Pending analysis",
-  subcategory: "Pending analysis",
-  sentiment: "Neutral",
-  urgency: "Medium",
-  priority: "P2",
-  productService: product?.trim() || "Unspecified",
-  entities: [],
-  department: "Unassigned",
-  escalation: false,
-  reason: "This complaint is waiting for analysis and Python validation.",
-  recommendation: "Do not route or resolve until analysis is available.",
-  agentGuidance: [
-    "Wait for the pipeline result before contacting the customer with a resolution.",
-  ],
-  clarificationQuestions: [],
-});
-
-export function buildComplaintFromDraft(
-  draft: ComplaintDraft,
-  existingIds: string[],
-  customerId: string,
-  customerName: string,
-): Complaint {
-  const now = new Date().toISOString();
-  const id = nextComplaintId(existingIds);
-  const missingItems: string[] = [];
-  const questions: string[] = [];
-
-  if (!draft.reference?.trim()) {
-    missingItems.push("Order or reference number");
-    questions.push(
-      "What is the order, invoice, or account reference for this issue?",
-    );
-  }
-
-  if (!draft.productService?.trim()) {
-    missingItems.push("Product or service");
-    questions.push("Which product or service does this relate to?");
-  }
-
-  if (draft.description.trim().length < 40) {
-    missingItems.push("Problem description");
-    questions.push(
-      "Can you describe what happened, including dates and what you would like us to do?",
-    );
-  }
-
-  return {
-    id,
-    subject: draft.subject.trim(),
-    description: draft.description.trim(),
-    customerId,
-    category: "Pending analysis",
-    subcategory: "Pending analysis",
-    department: "Unassigned",
-    productService: draft.productService?.trim() || "Unspecified",
-    priority: "P2",
-    urgency: "Medium",
-    sentiment: "Neutral",
-    status: "New",
-    escalated: false,
-    validation: "Pending",
-    createdAt: now,
-    updatedAt: now,
-    reference: draft.reference?.trim() || undefined,
-    contactChannel: draft.contactChannel || "Portal",
-    customerType: draft.customerType,
-    previousComplaintId: draft.previousComplaintId?.trim() || undefined,
-    attachmentName: draft.attachmentName,
-    intelligence: pendingIntelligence(
-      draft.subject,
-      draft.productService,
-    ),
-    validationDetail: {
-      overall: "Pending",
-      fields: [],
-      policyValidated: false,
-      resolutionValidated: false,
-    },
-    escalationAssessment: {
-      required: false,
-      level: "No Escalation",
-      reason: "Escalation has not been assessed yet.",
-      validation: "Pending",
-    },
-    missingInfo: missingItems.length
-      ? { items: missingItems, questions }
-      : undefined,
-    timeline: [
-      {
-        id: `${id}-t1`,
-        timestamp: now,
-        type: "submitted",
-        title: "Complaint submitted",
-        actor: customerName,
-        actorRole: "Customer",
-      },
-    ],
-  };
 }

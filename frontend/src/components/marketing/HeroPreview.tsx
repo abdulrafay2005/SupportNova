@@ -4,16 +4,24 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { UrgencyBadge } from "@/components/UrgencyBadge";
-import { useData } from "@/context/DataContext";
+import { exampleComplaints } from "@/data/mockData";
 import { cn } from "@/utils/cn";
 
 /**
  * Hero visual: the SN-000124 complaint as it appears in the workspace.
  * Stored results are revealed one at a time, once, to show how the record fills in.
  */
+/*
+ * Public marketing preview.
+ *
+ * This renders a fixed illustrative record from
+ * `@/data/mockData`, NOT live data. It deliberately no longer
+ * reads DataContext: the landing page is public, and the signed-in
+ * user's real complaints must never be rendered as marketing
+ * material.
+ */
 export function HeroPreview() {
-  const { complaints } = useData();
-  const c = complaints.find((x) => x.id === "SN-000124");
+  const c = exampleComplaints.find((x) => x.id === "SN-000124");
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -71,7 +79,7 @@ export function HeroPreview() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Complaint analysis</p>
             <dl className="mt-3 space-y-2.5 text-[13px]">
               <Row label="Primary issue" show>
-                <span className="font-medium text-ink">{c.intelligence.primaryIssue}</span>
+                <span className="font-medium text-ink">{c.intelligence?.primaryIssue ?? c.subject}</span>
               </Row>
               <Row label="Sentiment" show>
                 <SentimentBadge sentiment={c.sentiment} />

@@ -1,5 +1,25 @@
+/**
+ * STATIC CONTENT FOR THE PUBLIC MARKETING SITE.
+ *
+ * Nothing in this file is operational data and nothing here is
+ * rendered inside the signed-in product. The authenticated
+ * application reads complaints, users, departments, audit logs and
+ * knowledge-base documents from the API only.
+ *
+ * What remains here:
+ *   exampleComplaints / exampleCustomers  illustrative records used
+ *                                         by the landing-page
+ *                                         product previews
+ *   articles / kbCategories               help-centre editorial
+ *                                         content (no API yet)
+ *   complexExample / hardCases            landing-page copy
+ *
+ * Removed deliberately: demo staff accounts, mock routing rules,
+ * mock policy documents and mock notifications. Those screens are
+ * wired to the backend or show an honest empty state instead.
+ */
+
 import type {
-  AuditLog,
   Complaint,
   ComplaintStatus,
   Customer,
@@ -9,35 +29,15 @@ import type {
   GroundTruthValidation,
   Intelligence,
   KnowledgeArticle,
-  NotificationItem,
-  PolicyDocument,
   PolicyRef,
   Priority,
-  ReportDefinition,
   ResolutionPlan,
-  RoutingRule,
   TimelineEvent,
-  User,
   ValidationState,
 } from "@/types";
 import { daysAgo, hoursAgo } from "@/utils/dates";
 
-export const DEMO_PASSWORD = "demo123";
-
-export const users: User[] = [
-  { id: "u-admin", name: "Marcus Adeyemi", email: "marcus.adeyemi@supportnova.com", role: "Admin", status: "Active", department: "Operations", lastActive: hoursAgo(0.4), createdAt: daysAgo(420, 9, 0), phone: "+44 20 7946 0100" },
-  { id: "u-nora", name: "Nora Hayes", email: "nora.hayes@supportnova.com", role: "Agent", status: "Active", department: "Returns", lastActive: hoursAgo(0.2), createdAt: daysAgo(210, 11, 0), phone: "+44 20 7946 0142" },
-  { id: "u-david", name: "David Okonkwo", email: "david.okonkwo@supportnova.com", role: "Agent", status: "Active", department: "Delivery Operations", lastActive: hoursAgo(1.1), createdAt: daysAgo(180, 10, 0) },
-  { id: "u-priya", name: "Priya Nair", email: "priya.nair@supportnova.com", role: "Agent", status: "Active", department: "Billing", lastActive: hoursAgo(2.4), createdAt: daysAgo(140, 14, 0) },
-  { id: "u-samir", name: "Samir Volkov", email: "samir.volkov@supportnova.com", role: "Agent", status: "Active", department: "Account Security", lastActive: hoursAgo(3), createdAt: daysAgo(90, 9, 30) },
-  { id: "u-jordan", name: "Jordan Ellis", email: "jordan.ellis@supportnova.com", role: "Agent", status: "Active", department: "Technical Support", lastActive: hoursAgo(5), createdAt: daysAgo(60, 16, 0) },
-  { id: "u-leila", name: "Leila Haddad", email: "leila.haddad@supportnova.com", role: "Agent", status: "Inactive", department: "Customer Accounts", lastActive: daysAgo(12, 17, 40), createdAt: daysAgo(300, 9, 0) },
-  { id: "c-ayesha", name: "Ayesha Khan", email: "ayesha.khan@example.com", role: "Customer", status: "Active", lastActive: hoursAgo(6), createdAt: daysAgo(64, 13, 20), phone: "+44 7700 900124" },
-  { id: "c-marcus", name: "Marcus Chen", email: "marcus.chen@example.com", role: "Customer", status: "Active", lastActive: daysAgo(1, 11, 0), createdAt: daysAgo(120, 10, 0) },
-  { id: "c-elena", name: "Elena Rossi", email: "elena.rossi@example.com", role: "Customer", status: "Active", lastActive: hoursAgo(8), createdAt: daysAgo(40, 15, 0) },
-];
-
-export const customers: Customer[] = [
+export const exampleCustomers: Customer[] = [
   { id: "c-ayesha", name: "Ayesha Khan", email: "ayesha.khan@example.com", phone: "+44 7700 900124", company: "Northbridge Clinic", reference: "CUS-10421", customerType: "Business", joinedAt: daysAgo(64, 13, 20), openComplaints: 2 },
   { id: "c-marcus", name: "Marcus Chen", email: "marcus.chen@example.com", phone: "+44 7700 900331", company: "Helio Analytics", reference: "CUS-09811", customerType: "Business", joinedAt: daysAgo(120, 10, 0), openComplaints: 1 },
   { id: "c-priya", name: "Priya Sharma", email: "priya.sharma@example.com", phone: "+44 7700 900882", reference: "CUS-11204", customerType: "Consumer", joinedAt: daysAgo(28, 9, 0), openComplaints: 1 },
@@ -160,9 +160,9 @@ function build(input: BuildInput): Complaint {
     notes: input.escalationNotes,
   };
   const validation = input.validation ?? matched({
-    Category: intelligence.category,
-    Department: intelligence.department,
-    Urgency: intelligence.urgency,
+    Category: intelligence.category ?? "",
+    Department: intelligence.department ?? "",
+    Urgency: intelligence.urgency ?? "",
     Escalation: required ? "Required" : "Not required",
   });
   return {
@@ -212,7 +212,7 @@ const billPol: PolicyRef = { id: "BIL-POL-01", title: "Billing Correction Policy
 const secPol: PolicyRef = { id: "SEC-POL-03", title: "Account Security Incident Policy", section: "1.2 Suspected takeover", version: "4.0", status: "Active", applicability: "Applicable — unrecognised access", source: "Help Center / Security" };
 const privPol: PolicyRef = { id: "PRI-POL-01", title: "Data Subject Request Policy", section: "3.1 Access requests", version: "2.0", status: "Active", applicability: "Applicable — export request", source: "Help Center / Privacy" };
 
-export const complaints: Complaint[] = [
+export const exampleComplaints: Complaint[] = [
   build({
     id: "SN-000124",
     subject: "Damaged parcel",
@@ -933,91 +933,6 @@ export const articles: KnowledgeArticle[] = [
   { id: "kb-general-01", title: "How complaint handling works", category: "General Support", summary: "What customers should expect after submitting a complaint.", updatedAt: daysAgo(5, 12, 0), relatedIds: ["kb-orders-01"], version: "1.1", effectiveDate: daysAgo(10, 9, 0), content: ["Every complaint receives an ID. It is analysed, checked against policy, and routed to a department.", "You can track status with the complaint ID. We will ask only for information needed to investigate."] },
 ];
 
-export const rules: RoutingRule[] = [
-  { id: "R-01", category: "Account Access", subcategory: "Account takeover", condition: "Unauthorised access or suspected takeover", department: "Account Security", urgency: "Critical", priority: "P0", policy: "SEC-POL-03", escalation: "Specialist Team", requiredActions: "Lock account; verify identity", prohibitedActions: "Discuss recovery codes on an unverified channel", followUp: "Escalation acknowledgement", status: "Active", updatedAt: daysAgo(20, 10, 0) },
-  { id: "R-02", category: "Delivery", subcategory: "Delayed delivery", condition: "Perishable or event-dated delay", department: "Delivery Operations", urgency: "Critical", priority: "P0", policy: "DEL-POL-04", escalation: "Critical Management Escalation", requiredActions: "Refund; stop shipment if in network", prohibitedActions: "Promise a replacement after the event date", followUp: "Refund-status update", status: "Active", updatedAt: daysAgo(14, 11, 0) },
-  { id: "R-03", category: "Product Quality", subcategory: "Damaged parcel", condition: "Repeat damaged replacement", department: "Returns", urgency: "Critical", priority: "P0", policy: "RET-POL-02", escalation: "Supervisor Review", requiredActions: "Refund; flag packing", prohibitedActions: "Send a third replacement of the same SKU", followUp: "Refund-status update", status: "Active", updatedAt: daysAgo(8, 9, 0) },
-  { id: "R-04", category: "Account Access", subcategory: "Data request", condition: "Data-subject access or deletion", department: "Account Security", urgency: "Medium", priority: "P2", policy: "PRI-POL-01", escalation: "Compliance Review", requiredActions: "Verify identity; privacy register", prohibitedActions: "Email data to an unverified address", followUp: "Additional information request", status: "Active", updatedAt: daysAgo(40, 10, 0) },
-  { id: "R-05", category: "Product Quality", subcategory: "Damaged parcel", condition: "First damaged delivery", department: "Returns", urgency: "High", priority: "P1", policy: "RET-POL-02", escalation: "No Escalation", requiredActions: "Verify order; replace if eligible", prohibitedActions: "Charge return postage for inbound damage", followUp: "Replacement-status update", status: "Active", updatedAt: daysAgo(60, 9, 0) },
-  { id: "R-06", category: "Billing", subcategory: "Payment dispute", condition: "Duplicate capture or incorrect invoice", department: "Billing", urgency: "High", priority: "P1", policy: "BIL-POL-01", escalation: "No Escalation", requiredActions: "Confirm processor IDs; reverse duplicate", prohibitedActions: "Refund an authorisation hold", followUp: "Refund-status update", status: "Active", updatedAt: daysAgo(55, 9, 0) },
-  { id: "R-07", category: "Delivery", subcategory: "Failed delivery", condition: "Delivered scan with no goods", department: "Delivery Operations", urgency: "High", priority: "P1", policy: "DEL-POL-04", escalation: "No Escalation", requiredActions: "Request POD; open tracer", prohibitedActions: "Accuse the customer of receiving the parcel", followUp: "Resolution confirmation", status: "Active", updatedAt: daysAgo(55, 9, 0) },
-  { id: "R-08", category: "Technical Issue", subcategory: "Application error", condition: "App or checkout defect", department: "Technical Support", urgency: "Medium", priority: "P2", policy: "—", escalation: "No Escalation", requiredActions: "Collect device and version; log defect", prohibitedActions: "Promise a release date", followUp: "Resolution confirmation", status: "Active", updatedAt: daysAgo(70, 10, 0) },
-  { id: "R-09", category: "Billing", subcategory: "Promotion not applied", condition: "Promo code rejected", department: "Billing", urgency: "Low", priority: "P3", policy: "BIL-POL-01", escalation: "No Escalation", requiredActions: "Check campaign dates", prohibitedActions: "Stack unpublished discounts", followUp: "None", status: "Disabled", updatedAt: daysAgo(3, 16, 0) },
-  { id: "R-10", category: "Product Quality", subcategory: "Safety issue", condition: "Injury or product safety risk", department: "Safety", urgency: "Critical", priority: "P0", policy: "SAF-POL-01", escalation: "Critical Management Escalation", requiredActions: "Quarantine SKU; notify compliance", prohibitedActions: "Ask the customer to keep using the product", followUp: "Escalation acknowledgement", status: "Active", updatedAt: daysAgo(25, 15, 0) },
-];
-
-export const documents: PolicyDocument[] = [
-  { id: "RET-POL-02", title: "Returns and Replacement Policy", category: "Returns", version: "3.0", effectiveDate: daysAgo(30, 9, 0), expiryDate: daysAgo(-335, 9, 0), status: "Active", uploadedAt: daysAgo(32, 11, 0), format: "PDF" },
-  { id: "RET-POL-02-PREV", title: "Returns and Replacement Policy", category: "Returns", version: "2.4", effectiveDate: daysAgo(200, 9, 0), expiryDate: daysAgo(30, 9, 0), status: "Superseded", uploadedAt: daysAgo(210, 11, 0), format: "PDF" },
-  { id: "DEL-POL-04", title: "Delivery Resolution Policy", category: "Delivery", version: "2.1", effectiveDate: daysAgo(60, 9, 0), status: "Active", uploadedAt: daysAgo(62, 10, 0), format: "PDF" },
-  { id: "BIL-POL-01", title: "Billing Correction Policy", category: "Payments", version: "1.8", effectiveDate: daysAgo(90, 9, 0), status: "Active", uploadedAt: daysAgo(92, 14, 0), format: "DOCX" },
-  { id: "SEC-POL-03", title: "Account Security Incident Policy", category: "Security", version: "4.0", effectiveDate: daysAgo(20, 9, 0), status: "Active", uploadedAt: daysAgo(21, 9, 0), format: "PDF" },
-  { id: "PRI-POL-01", title: "Data Subject Request Policy", category: "Privacy", version: "2.0", effectiveDate: daysAgo(80, 9, 0), status: "Active", uploadedAt: daysAgo(82, 11, 0), format: "PDF" },
-  { id: "SAF-POL-01", title: "Product Safety Escalation Policy", category: "Safety", version: "0.9", effectiveDate: daysAgo(5, 9, 0), status: "Draft", uploadedAt: daysAgo(5, 16, 0), format: "DOCX" },
-  { id: "GEN-SOP-01", title: "Complaint Handling SOP", category: "General Support", version: "1.1", effectiveDate: daysAgo(10, 9, 0), status: "Active", uploadedAt: daysAgo(10, 12, 0), format: "PDF" },
-];
-
-export const reports: ReportDefinition[] = [
-  { id: "rep-analysis", title: "Complaint analysis", category: "Complaint Analysis", description: "Volume, categories, and products for the selected period." },
-  { id: "rep-dept", title: "Department performance", category: "Department Performance", description: "Open work, escalations, and time-to-resolution by department." },
-  { id: "rep-esc", title: "Escalations", category: "Escalations", description: "Escalation level, reason, and outcome." },
-  { id: "rep-sla", title: "SLA status", category: "SLA Status", description: "Cases past or approaching response and resolution targets." },
-  { id: "rep-policy", title: "Policy usage", category: "Policy Usage", description: "Which policy documents were applied to complaints." },
-  { id: "rep-compliance", title: "Resolution compliance", category: "Resolution Compliance", description: "Required versus prohibited actions recorded on closed cases." },
-  { id: "rep-compare", title: "GenAI / Python comparison", category: "GenAI/Python Comparison", description: "Field-level match and mismatch counts. No accuracy claims." },
-  { id: "rep-review", title: "Manual reviews", category: "Manual Reviews", description: "Cases flagged for reviewer action and their outcomes." },
-];
-
-export const auditLogs: AuditLog[] = [
-  { id: "a1", timestamp: hoursAgo(0.4), user: "Marcus Adeyemi", action: "Updated escalation rule", resource: "R-04", result: "Success", details: "Clarified privacy-register logging." },
-  { id: "a2", timestamp: hoursAgo(0.5), user: "Samir Volkov", action: "Escalated complaint", resource: "SN-000128", result: "Success", details: "Identity check requested." },
-  { id: "a3", timestamp: hoursAgo(0.7), user: "Nora Hayes", action: "Added comment", resource: "SN-000124", result: "Success", details: "Requested packaging confirmation." },
-  { id: "a4", timestamp: hoursAgo(1.1), user: "David Okonkwo", action: "Escalated complaint", resource: "SN-000133", result: "Success", details: "Chilled misdelivery. Duty manager notified." },
-  { id: "a5", timestamp: hoursAgo(1.5), user: "Nora Hayes", action: "Added internal note", resource: "SN-000150", result: "Success", details: "Recommended refund rather than a third replacement." },
-  { id: "a6", timestamp: hoursAgo(2.2), user: "Jordan Ellis", action: "Assigned complaint", resource: "SN-000131", result: "Success", details: "Self-assigned from the technical queue." },
-  { id: "a7", timestamp: hoursAgo(3), user: "Priya Nair", action: "Changed complaint status", resource: "SN-000125", result: "Success", details: "Set to Awaiting Customer." },
-  { id: "a8", timestamp: hoursAgo(4), user: "Marcus Adeyemi", action: "Approved manual review", resource: "SN-000138", result: "Success", details: "Held for order-desk confirmation." },
-  { id: "a9", timestamp: hoursAgo(6), user: "Nora Hayes", action: "Modified classification", resource: "SN-000139", result: "Success", details: "Linked as reopen of SN-000124." },
-  { id: "a10", timestamp: hoursAgo(8), user: "System", action: "Generated response", resource: "SN-000128", result: "Success", details: "Customer-facing containment message stored." },
-  { id: "a11", timestamp: daysAgo(1, 11, 20), user: "Marcus Adeyemi", action: "Reassigned complaint", resource: "SN-000145", result: "Success", details: "Moved to Jordan Ellis." },
-  { id: "a12", timestamp: daysAgo(1, 15, 10), user: "Nora Hayes", action: "Resolved complaint", resource: "SN-000132", result: "Success", details: "Exchange delivered and confirmed." },
-  { id: "a13", timestamp: daysAgo(3, 16, 0), user: "Marcus Adeyemi", action: "Disabled routing rule", resource: "R-09", result: "Success", details: "Promo-code rule paused during campaign." },
-  { id: "a14", timestamp: daysAgo(8, 14, 0), user: "Nora Hayes", action: "Closed complaint", resource: "SN-000136", result: "Success", details: "Warranty replacement confirmed." },
-  { id: "a15", timestamp: hoursAgo(0.3), user: "David Okonkwo", action: "Added comment", resource: "SN-000143", result: "Success", details: "Refund queued pending manager sign-off." },
-  { id: "a16", timestamp: daysAgo(1, 10, 0), user: "Samir Volkov", action: "Changed complaint status", resource: "SN-000149", result: "Failed", details: "Export job could not attach payment-method tokens; retried without PAN data." },
-];
-
-export const notifications: NotificationItem[] = [
-  { id: "n1", title: "SN-000128 remains escalated", body: "Unauthorised login attempts — identity check still outstanding.", timestamp: hoursAgo(0.5), read: false, href: "/complaints/SN-000128" },
-  { id: "n2", title: "SLA risk on SN-000143", body: "Perishable delivery missed its window. Refund awaiting sign-off.", timestamp: hoursAgo(0.3), read: false, href: "/complaints/SN-000143" },
-  { id: "n3", title: "Manual review: SN-000131", body: "Department mismatch between GenAI and Python.", timestamp: hoursAgo(2), read: false, href: "/manual-review" },
-  { id: "n4", title: "New complaint in your queue", body: "SN-000139 — replacement still has not shipped (Ayesha Khan).", timestamp: hoursAgo(0.9), read: false, href: "/complaints/SN-000139" },
-  { id: "n5", title: "Repeat damage flagged", body: "SN-000150 matched rule R-03.", timestamp: hoursAgo(1.5), read: true, href: "/complaints/SN-000150" },
-];
-
-export const departments = [
-  "Returns",
-  "Billing",
-  "Account Security",
-  "Delivery Operations",
-  "Product Support",
-  "Technical Support",
-  "Customer Accounts",
-  "Safety",
-  "Compliance",
-] as const;
-
-export const categories = [
-  "Product Quality",
-  "Billing",
-  "Delivery",
-  "Account Access",
-  "Payments",
-  "Technical Issue",
-  "Order Issue",
-  "General Inquiry",
-] as const;
-
 export const kbCategories = [
   "Orders",
   "Payments",
@@ -1030,43 +945,6 @@ export const kbCategories = [
   "Privacy",
   "General Support",
 ] as const;
-
-export const analyticsDemo = {
-  volume30d: 186,
-  resolved30d: 145,
-  avgResolutionHours: 14.2,
-  escalations30d: 11,
-  manualReviewOpen: 3,
-  mismatchCount: 2,
-  slaRiskCount: 4,
-  repeatComplaints: 6,
-  volumeByDay: [8, 11, 9, 14, 12, 7, 5, 13, 15, 10, 12, 16, 9, 11],
-  categoryCounts: [
-    { label: "Product Quality", value: 42 },
-    { label: "Delivery", value: 38 },
-    { label: "Billing", value: 31 },
-    { label: "Account Access", value: 24 },
-    { label: "Payments", value: 18 },
-    { label: "Technical Issue", value: 16 },
-    { label: "Order Issue", value: 11 },
-    { label: "General Inquiry", value: 6 },
-  ],
-  departmentWorkload: [
-    { department: "Returns", open: 8, pending: 2, escalated: 1, resolved: 14 },
-    { department: "Delivery Operations", open: 6, pending: 1, escalated: 2, resolved: 11 },
-    { department: "Billing", open: 5, pending: 4, escalated: 0, resolved: 16 },
-    { department: "Account Security", open: 3, pending: 1, escalated: 2, resolved: 7 },
-    { department: "Technical Support", open: 3, pending: 0, escalated: 0, resolved: 9 },
-    { department: "Customer Accounts", open: 2, pending: 1, escalated: 0, resolved: 8 },
-    { department: "Product Support", open: 2, pending: 0, escalated: 0, resolved: 6 },
-  ],
-  trends: [
-    { title: "Rising delivery complaints", detail: "Failed-delivery and perishable delay cases are higher in the last 14 days of demo data." },
-    { title: "Increasing billing complaints", detail: "Duplicate captures and holds appear more often around invoice cycles." },
-    { title: "Recurring product issues", detail: "Damaged glassware and ceramics repeat on the same packing path." },
-    { title: "Escalation spikes", detail: "Account-security and perishable-delivery escalations cluster outside business hours." },
-  ],
-};
 
 /** Illustrative examples used on the public site. They show how handling differs; they are not live complaints. */
 export const complexExample: {

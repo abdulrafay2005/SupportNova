@@ -4,12 +4,22 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Input } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
+import { Select } from "@/components/Select";
+import { StatCard } from "@/components/StatCard";
 import { Textarea } from "@/components/Textarea";
 import {
   getReviewQueue,
+  getReviewStatistics,
   reviewAction,
+  type ReviewStatistics,
   type WorkflowComplaint,
 } from "@/api/workflows";
+import {
+  getAssignableAgents,
+  getDepartments,
+  type AssignableAgent,
+  type Department,
+} from "@/api/management";
 
 type ReviewerStatus =
   | "Manual Review"
@@ -87,11 +97,36 @@ export function ManualReview() {
   const [error, setError] =
     useState<string | null>(null);
 
+  const [statistics, setStatistics] =
+    useState<ReviewStatistics | null>(null);
+
+  /*
+   * Departments and agents come from the backend registry
+   * (GET /api/departments, GET /api/admin/agents). Nothing on this
+   * page hardcodes a department name or an agent, and the agent
+   * list is always scoped to the complaint's own department —
+   * the backend rejects a cross-department reassignment anyway.
+   */
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentsError, setDepartmentsError] =
+    useState<string | null>(null);
+
+  const [agents, setAgents] = useState<AssignableAgent[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [agentsError, setAgentsError] =
+    useState<string | null>(null);
+
   async function refresh() {
     setLoading(true);
 
     try {
-      setQueue(await getReviewQueue());
+      const [queueItems, stats] = await Promise.all([
+        getReviewQueue(),
+        getReviewStatistics(),
+      ]);
+
+      setQueue(queueItems);
+      setStatistics(stats);
       setError(null);
     } catch (e: unknown) {
       setError(
@@ -108,6 +143,80 @@ export function ManualReview() {
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    getDepartments("Active")
+      .then((response) => {
+        if (active) {
+          setDepartments(response.departments);
+          setDepartmentsError(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDepartmentsError(
+            "Unable to load the department list.",
+          );
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /*
+   * Eligible agents for the complaint being reviewed. Loaded only
+   * when the reviewer chooses Reassign, and scoped to the
+   * complaint's department so the picker cannot offer an agent the
+   * backend would refuse.
+   */
+  const reassignDepartment =
+    action === "reassign"
+      ? selected?.assigned_department ?? null
+      : null;
+
+  const reassignComplaintId =
+    action === "reassign" ? selected?.id ?? null : null;
+
+  useEffect(() => {
+    if (!reassignComplaintId) {
+      setAgents([]);
+      setAgentsError(null);
+      return;
+    }
+
+    let active = true;
+
+    setAgentsLoading(true);
+    setAgentsError(null);
+
+    getAssignableAgents(reassignDepartment ?? undefined)
+      .then((list) => {
+        if (active) {
+          setAgents(list);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAgents([]);
+          setAgentsError(
+            "Unable to load the agents for this department.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setAgentsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [reassignComplaintId, reassignDepartment]);
 
   function openReview(
     complaint: WorkflowComplaint,
@@ -368,6 +477,157 @@ export function ManualReview() {
         title="Manual review"
         description="Review complaints requiring human validation before they enter the normal support workflow."
       />
+
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard
+          label="Pending reviews"
+          value={
+            statistics?.pending_reviews ?? queue.length
+          }
+          tone="warning"
+        />
+
+        <StatCard
+          label="Completed reviews"
+          value={statistics?.completed_reviews ?? 0}
+          tone="success"
+          hint={`${
+            statistics?.total_review_actions ?? 0
+          } review actions recorded`}
+        />
+
+        <StatCard
+          label="Validation failures"
+          value={
+            statistics?.validation
+              .validation_failed ?? 0
+          }
+          tone="danger"
+          hint={`${
+            statistics?.validation
+              .analyzed_complaints ?? 0
+          } analyses checked`}
+        />
+
+        <StatCard
+          label="My review actions"
+          value={
+            statistics?.my_statistics?.actions ?? 0
+          }
+          hint={`${
+            statistics?.my_statistics?.approvals ?? 0
+          } approved · ${
+            statistics?.my_statistics?.rejections ?? 0
+          } rejected`}
+        />
+      </div>
+
+      {statistics && (
+        <div className="mb-4 grid gap-3 lg:grid-cols-3">
+          <div className="panel p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Review outcomes
+            </p>
+
+            {statistics.total_review_actions === 0 ? (
+              <p className="text-[12px] text-ink-muted">
+                No review actions recorded yet.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-[12px]">
+                {Object.entries(
+                  statistics.outcome_counts,
+                ).map(([action, count]) => (
+                  <li
+                    className="flex justify-between"
+                    key={action}
+                  >
+                    <span className="text-ink-muted">
+                      {action}
+                    </span>
+                    <span className="tabular font-medium">
+                      {count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="panel p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Validation issues
+            </p>
+
+            {Object.keys(
+              statistics.validation
+                .issue_code_distribution,
+            ).length === 0 ? (
+              <p className="text-[12px] text-ink-muted">
+                No validation issues recorded.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-[12px]">
+                {Object.entries(
+                  statistics.validation
+                    .issue_code_distribution,
+                ).map(([code, count]) => (
+                  <li
+                    className="flex justify-between"
+                    key={code}
+                  >
+                    <span className="text-ink-muted">
+                      {code}
+                    </span>
+                    <span className="tabular font-medium">
+                      {count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {!statistics.validation
+              .field_level_comparison_available && (
+              <p className="mt-2 text-[11px] text-ink-faint">
+                Field-level GenAI vs Python comparison is
+                not stored by the analysis pipeline.
+              </p>
+            )}
+          </div>
+
+          <div className="panel p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Reviewer workload
+            </p>
+
+            {statistics.reviewer_workload.length === 0 ? (
+              <p className="text-[12px] text-ink-muted">
+                No reviewer activity recorded yet.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-[12px]">
+                {statistics.reviewer_workload
+                  .slice(0, 6)
+                  .map((row) => (
+                    <li
+                      className="flex justify-between"
+                      key={row.reviewer_id}
+                    >
+                      <span className="truncate text-ink-muted">
+                        {row.reviewer_name ??
+                          row.reviewer_id}
+                      </span>
+                      <span className="tabular font-medium">
+                        {row.actions}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="mb-3 rounded border border-danger/30 p-3 text-[13px] text-danger">
@@ -641,7 +901,7 @@ export function ManualReview() {
                       placeholder="e.g. Duplicate charge"
                     />
 
-                    <Input
+                    <Select
                       label="Department"
                       value={department}
                       onChange={(e) =>
@@ -649,10 +909,16 @@ export function ManualReview() {
                           e.target.value,
                         )
                       }
-                      placeholder="e.g. Payments & Finance"
+                      placeholder="Select a department"
+                      options={departments.map((d) => ({
+                        value: d.name,
+                        label: d.name,
+                      }))}
+                      error={departmentsError ?? undefined}
                     />
 
                     <p className="text-[12px] text-ink-muted">
+                      Departments come from the backend registry.
                       The backend stores the
                       classification and re-routes
                       the complaint.
@@ -663,21 +929,48 @@ export function ManualReview() {
                 {action ===
                   "reassign" && (
                   <div className="mt-3 space-y-3">
-                    <Input
-                      label="Agent ID"
-                      value={agentId}
-                      onChange={(e) =>
-                        setAgentId(
-                          e.target.value,
-                        )
-                      }
-                      placeholder="Backend user ID of an active agent"
-                    />
+                    {agentsLoading ? (
+                      <p className="text-[13px] text-ink-muted">
+                        Loading agents…
+                      </p>
+                    ) : agentsError ? (
+                      <p className="text-[13px] text-danger">
+                        {agentsError}
+                      </p>
+                    ) : agents.length === 0 ? (
+                      <p className="text-[13px] text-ink-muted">
+                        {selected?.assigned_department
+                          ? `No active agents are available in ${selected.assigned_department}.`
+                          : "No active agents are available."}
+                      </p>
+                    ) : (
+                      <Select
+                        label="Agent"
+                        value={agentId}
+                        onChange={(e) =>
+                          setAgentId(
+                            e.target.value,
+                          )
+                        }
+                        placeholder="Select an agent"
+                        options={agents.map((a) => {
+                          const name =
+                            a.name ?? "Unnamed agent";
+
+                          return {
+                            value: a.id,
+                            label: a.department
+                              ? `${name} · ${a.department}`
+                              : name,
+                          };
+                        })}
+                      />
+                    )}
 
                     <p className="text-[12px] text-ink-muted">
-                      The backend verifies that the
-                      Agent is active and belongs to
-                      the complaint's department.
+                      Only active agents of the complaint’s own
+                      department are listed, and the backend
+                      re-checks both before it reassigns.
                     </p>
                   </div>
                 )}

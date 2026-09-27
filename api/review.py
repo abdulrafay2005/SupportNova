@@ -12,6 +12,7 @@ from api.database import (
 from api.audit import create_audit_log
 from api.activity import create_complaint_activity
 from api.assignment import auto_assign_complaint
+from api.analytics import get_validation_statistics
 from ml.genai import generate_ai_fields, merge_ai_result, openai_enabled
 
 # ============================================================
@@ -254,7 +255,51 @@ def _complete_review(
             assigned_agent = {
                 "id": str(agent["_id"]),
                 "name": agent.get("name"),
+                "department": agent.get("department"),
             }
+
+    # --------------------------------------------------------
+    # POST-CONDITION: "Assigned" always has an owner.
+    #
+    # A complaint that says "Assigned" while `assigned_to` is null
+    # belongs to no agent queue and is invisible to every role but
+    # management. If that ever happens the complaint is put back
+    # into "Analyzed" and the reason is recorded, so it stays
+    # visible as unrouted work instead of silently disappearing.
+    # --------------------------------------------------------
+    stored = complaints_collection.find_one(
+        {"_id": complaint_object_id}
+    ) or {}
+
+    if (
+        stored.get("status") == "Assigned"
+        and not stored.get("assigned_to")
+    ):
+        complaints_collection.update_one(
+            {"_id": complaint_object_id},
+            {
+                "$set": {
+                    "status": "Analyzed",
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+        )
+
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="routed",
+            title="Awaiting manual assignment",
+            description=(
+                "The review outcome could not be routed to an "
+                "agent, so the complaint stays unassigned."
+            ),
+            metadata={
+                "department": stored.get("assigned_department"),
+            },
+        )
+
+        final_status = "Analyzed"
+        assigned_agent = None
 
     return {
         "message": f"Review action '{action}' completed successfully",
@@ -287,12 +332,22 @@ def approve_review(
         complaint_id
     )
 
+    # --------------------------------------------------------
+    # An approved complaint re-enters normal handling, which means
+    # it must be routed by the existing assignment service.
+    #
+    # It is deliberately NOT written as "Assigned" here: that
+    # produced complaints with status "Assigned" and
+    # assigned_to = null, which belong to no agent queue.
+    # `_complete_review` promotes the complaint to "Assigned" only
+    # once a real agent has been persisted on it.
+    # --------------------------------------------------------
     return _complete_review(
         complaint_id=complaint_id,
         complaint_object_id=complaint_object_id,
         reviewer=reviewer,
         action="Approve",
-        next_status="Assigned",
+        next_status="Analyzed",
         comment=comment,
         original_analysis=original_analysis
     )
@@ -770,3 +825,220 @@ def regenerate_review_response(
         original_analysis=original_analysis_snapshot,
         changes=changes
     )
+
+# ============================================================
+# REVIEW STATISTICS
+#
+# Read-only aggregations over data the review workflow already
+# persists:
+#
+#   complaints.review_status / manual_review_required / status
+#   complaints.review_history[]  (written by _record_review_history)
+#   analyses.analysis.validation (written by validate_workflow)
+#
+# No reviewer action or workflow transition is performed here.
+# ============================================================
+
+REVIEW_ACTIONS = [
+    "Approve",
+    "Reject",
+    "Modify",
+    "Reclassify",
+    "Reassign",
+    "Escalate",
+    "Regenerate Response",
+    "Comment",
+]
+
+PENDING_REVIEW_QUERY = {
+    "manual_review_required": True,
+    "status": "Manual Review",
+    "$or": [
+        {"review_status": "Pending"},
+        {"review_status": None},
+    ],
+}
+
+
+def get_review_statistics(reviewer: dict | None = None):
+    """
+    Queue size, review outcomes, reviewer workload and validation
+    issue distribution.
+
+    Every number is derived from persisted documents. Metrics the
+    schema cannot support are not estimated.
+    """
+
+    pending = complaints_collection.count_documents(
+        PENDING_REVIEW_QUERY
+    )
+
+    completed = complaints_collection.count_documents({
+        "review_status": "Completed"
+    })
+
+    flagged_total = complaints_collection.count_documents({
+        "review_history": {"$exists": True, "$ne": []}
+    })
+
+    outcome_rows = list(
+        complaints_collection.aggregate([
+            {"$match": {"review_history": {"$exists": True}}},
+            {"$unwind": "$review_history"},
+            {
+                "$group": {
+                    "_id": "$review_history.action",
+                    "count": {"$sum": 1},
+                }
+            },
+        ])
+    )
+
+    outcome_counts = {action: 0 for action in REVIEW_ACTIONS}
+    other_outcomes = {}
+
+    for row in outcome_rows:
+        action = row.get("_id")
+        count = row.get("count", 0)
+
+        if action in outcome_counts:
+            outcome_counts[action] += count
+        elif isinstance(action, str) and action.strip():
+            other_outcomes[action] = (
+                other_outcomes.get(action, 0) + count
+            )
+
+    workload_rows = list(
+        complaints_collection.aggregate([
+            {"$match": {"review_history": {"$exists": True}}},
+            {"$unwind": "$review_history"},
+            {
+                "$group": {
+                    "_id": "$review_history.reviewer_id",
+                    "reviewer_name": {
+                        "$max": "$review_history.reviewer_name"
+                    },
+                    "actions": {"$sum": 1},
+                    "last_action_at": {
+                        "$max": "$review_history.created_at"
+                    },
+                    "approvals": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$eq": [
+                                        "$review_history.action",
+                                        "Approve",
+                                    ]
+                                },
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "rejections": {
+                        "$sum": {
+                            "$cond": [
+                                {
+                                    "$eq": [
+                                        "$review_history.action",
+                                        "Reject",
+                                    ]
+                                },
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                }
+            },
+            {"$sort": {"actions": -1}},
+        ])
+    )
+
+    workload = [
+        {
+            "reviewer_id": row.get("_id"),
+            "reviewer_name": row.get("reviewer_name"),
+            "actions": row.get("actions", 0),
+            "approvals": row.get("approvals", 0),
+            "rejections": row.get("rejections", 0),
+            "last_action_at": row.get("last_action_at"),
+        }
+        for row in workload_rows
+        if row.get("_id")
+    ]
+
+    recent_activity = []
+
+    for complaint in complaints_collection.find(
+        {"review_history": {"$exists": True, "$ne": []}},
+        {
+            "title": 1,
+            "status": 1,
+            "review_history": 1,
+        },
+    ).sort("updated_at", -1).limit(20):
+        history = complaint.get("review_history") or []
+
+        for entry in history[-3:]:
+            recent_activity.append({
+                "complaint_id": str(complaint["_id"]),
+                "complaint_title": complaint.get("title", ""),
+                "complaint_status": complaint.get("status"),
+                "action": entry.get("action"),
+                "reviewer_id": entry.get("reviewer_id"),
+                "reviewer_name": entry.get("reviewer_name"),
+                "comment": entry.get("comment"),
+                "created_at": entry.get("created_at"),
+            })
+
+    recent_activity.sort(
+        key=lambda item: (
+            item["created_at"] is None,
+            item["created_at"],
+        ),
+        reverse=True,
+    )
+
+    my_statistics = None
+
+    if reviewer and reviewer.get("id"):
+        mine = [
+            row
+            for row in workload
+            if row["reviewer_id"] == reviewer["id"]
+        ]
+
+        my_statistics = {
+            "reviewer_id": reviewer["id"],
+            "actions": mine[0]["actions"] if mine else 0,
+            "approvals": mine[0]["approvals"] if mine else 0,
+            "rejections": mine[0]["rejections"] if mine else 0,
+            "last_action_at": (
+                mine[0]["last_action_at"] if mine else None
+            ),
+            "completed_reviews": (
+                complaints_collection.count_documents({
+                    "review_status": "Completed",
+                    "reviewer_id": reviewer["id"],
+                })
+            ),
+        }
+
+    return {
+        "generated_at": datetime.now(timezone.utc),
+        "pending_reviews": pending,
+        "completed_reviews": completed,
+        "complaints_with_review_history": flagged_total,
+        "outcome_counts": outcome_counts,
+        "other_outcome_counts": other_outcomes,
+        "total_review_actions": (
+            sum(outcome_counts.values())
+            + sum(other_outcomes.values())
+        ),
+        "reviewer_workload": workload,
+        "recent_activity": recent_activity[:20],
+        "validation": get_validation_statistics(),
+        "my_statistics": my_statistics,
+    }

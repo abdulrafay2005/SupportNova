@@ -1,4 +1,5 @@
 import type { Urgency } from "@/types";
+import { NotAvailable } from "@/components/NotAvailable";
 import { cn } from "@/utils/cn";
 
 const styles: Record<Urgency, string> = {
@@ -8,7 +9,10 @@ const styles: Record<Urgency, string> = {
   Critical: "text-danger border-danger-muted bg-danger-subtle",
 };
 
-export function UrgencyBadge({ urgency }: { urgency: Urgency }) {
+export function UrgencyBadge({ urgency }: { urgency: Urgency | null | undefined }) {
+  /* Urgency is not persisted on the complaint document. */
+  if (!urgency) return <NotAvailable />;
+
   return (
     <span
       className={cn(

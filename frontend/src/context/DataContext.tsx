@@ -14,20 +14,19 @@ import {
   getComplaintAnalysis,
 } from "@/api/complaints";
 
-import {
-  articles as seedArticles,
-  auditLogs as seedLogs,
-  customers as seedCustomers,
-  documents,
-  notifications as seedNotes,
-  reports,
-  rules as seedRules,
-} from "@/data/mockData";
+/*
+ * Help-centre article content is static editorial content that
+ * ships with the product. No OPERATIONAL data (complaints,
+ * customers, routing rules, notifications, policy documents) is
+ * seeded from mock data any more: every operational surface now
+ * reads the backend, or shows an honest empty state when the
+ * backend has no endpoint for it yet.
+ */
+import { articles as seedArticles } from "@/data/mockData";
 
 import { useAuth } from "@/auth/AuthContext";
 
 import type {
-  AuditLog,
   Complaint,
   ComplaintDraft,
   ComplaintStatus,
@@ -35,23 +34,33 @@ import type {
   EscalationAssessment,
   KnowledgeArticle,
   NotificationItem,
-  PolicyDocument,
   Priority,
-  ReportDefinition,
-  RoutingRule,
   Sentiment,
   TimelineEvent,
-  Urgency,
 } from "@/types";
 
 interface DataContextValue {
   complaints: Complaint[];
+
+  /**
+   * Customer directory.
+   *
+   * The API exposes user records only to Admin
+   * (GET /api/admin/users), so there is no customer directory
+   * available to the other roles. It stays empty rather than
+   * being filled with sample people.
+   */
   customers: Customer[];
+
   articles: KnowledgeArticle[];
-  rules: RoutingRule[];
-  documents: PolicyDocument[];
-  reports: ReportDefinition[];
-  auditLogs: AuditLog[];
+
+  /**
+   * Session notifications.
+   *
+   * Generated from actions the signed-in user actually performed
+   * in this session. The backend has no notification store, so
+   * nothing is pre-populated and nothing survives a reload.
+   */
   notifications: NotificationItem[];
 
   loadingComplaints: boolean;
@@ -94,8 +103,6 @@ interface DataContextValue {
     assigneeName: string,
   ) => void;
 
-  toggleRule: (id: string) => void;
-
   markNotificationRead: (id: string) => void;
 
   markAllNotificationsRead: () => void;
@@ -109,7 +116,16 @@ const DataContext = createContext<DataContextValue | null>(null);
    HELPERS
    ========================================================= */
 
-function mapSentiment(label?: string): Sentiment {
+/**
+ * Backend label -> frontend union.
+ *
+ * Every mapper returns `null` when the backend produced nothing.
+ * A missing value is never replaced with a default: "Neutral",
+ * "P3" or "Low" would be invented analysis output.
+ */
+function mapSentiment(
+  label?: string | null,
+): Sentiment | null {
   switch (label?.trim().toLowerCase()) {
     case "positive":
       return "Positive";
@@ -120,40 +136,36 @@ function mapSentiment(label?: string): Sentiment {
     case "negative":
       return "Negative";
 
-    default:
+    case "neutral":
       return "Neutral";
+
+    default:
+      return null;
   }
 }
 
-function mapPriority(level?: string): Priority {
+function mapPriority(
+  level?: string | null,
+): Priority | null {
   switch (level?.trim().toLowerCase()) {
+    case "p0":
     case "critical":
       return "P0";
 
+    case "p1":
     case "high":
       return "P1";
 
+    case "p2":
     case "medium":
       return "P2";
 
-    default:
+    case "p3":
+    case "low":
       return "P3";
-  }
-}
-
-function mapUrgency(level?: string): Urgency {
-  switch (level?.trim().toLowerCase()) {
-    case "critical":
-      return "Critical";
-
-    case "high":
-      return "High";
-
-    case "medium":
-      return "Medium";
 
     default:
-      return "Low";
+      return null;
   }
 }
 
@@ -182,28 +194,46 @@ function mapStatus(status?: string | null): ComplaintStatus {
 }
 
 function mapEscalationLevel(
-  level?: string,
+  level?: string | null,
 ): EscalationAssessment["level"] {
-  switch (level?.trim().toLowerCase()) {
+  const value = level?.trim().toLowerCase();
+
+  switch (value) {
     case "critical":
+    case "critical management escalation":
       return "Critical Management Escalation";
 
     case "high":
+    case "supervisor review":
       return "Supervisor Review";
 
     case "medium":
+    case "department manager":
       return "Department Manager";
 
     case "low":
+    case "specialist team":
       return "Specialist Team";
 
-    default:
+    case "compliance review":
+      return "Compliance Review";
+
+    case "none":
+    case "no escalation":
       return "No Escalation";
+
+    default:
+      return null;
   }
 }
 
 /* =========================================================
    BACKEND COMPLAINT
+
+   Mirrors the payload of GET /api/complaints. Analysis-derived
+   fields (category, subcategory, sentiment, escalation) are
+   merged in by the API from the `analyses` collection and are
+   absent when a complaint has never been analyzed.
    ========================================================= */
 
 interface BackendComplaint {
@@ -226,6 +256,19 @@ interface BackendComplaint {
 
   manual_review_required?: boolean;
   review_status?: string | null;
+  reviewer_id?: string | null;
+
+  /* Persisted rule-engine output. */
+  priority?: string | null;
+  sla_due_at?: string | null;
+
+  /* Merged from the stored analysis document. */
+  category?: string | null;
+  subcategory?: string | null;
+  sentiment?: string | null;
+  escalation_required?: boolean | null;
+  escalation_level?: string | null;
+  analysis_available?: boolean;
 
   created_at: string;
   updated_at?: string | null;
@@ -235,7 +278,13 @@ interface BackendComplaint {
 }
 
 /* =========================================================
-   MAP BACKEND → FRONTEND
+   MAP BACKEND -> FRONTEND
+
+   Rule for this function: every field is either a value the
+   backend actually returned, or `null`. Nothing is derived from
+   a guess, and no placeholder sentence is written into a field
+   that is meant to hold analysis output. Screens render
+   "Not available" for `null`.
    ========================================================= */
 
 function mapBackendComplaint(
@@ -246,28 +295,9 @@ function mapBackendComplaint(
 
   const status = mapStatus(item.status);
 
-  const priority = mapPriority(
-    item.manual_review_required
-      ? "critical"
-      : undefined,
-  );
-
-  const urgency = mapUrgency(
-    item.manual_review_required
-      ? "critical"
-      : undefined,
-  );
-
-  const product =
-    item.product ?? "Unspecified";
-
-  const department =
-    item.assigned_department ??
-    "Unassigned";
-
   const escalated =
-    status === "Escalated" ||
-    item.manual_review_required === true;
+    item.escalation_required === true ||
+    status === "Escalated";
 
   return {
     id: item.id,
@@ -276,137 +306,71 @@ function mapBackendComplaint(
 
     description: item.description,
 
+    customerId: item.user_id || "",
 
-    customerId: item.user_id || "unknown",
+    category: item.category ?? null,
 
-    category: "Analysis available in complaint details",
+    subcategory: item.subcategory ?? null,
 
-    subcategory: "Analysis available in complaint details",
+    department: item.assigned_department ?? null,
 
-    department,
+    productService: item.product ?? null,
 
-    productService: product,
+    priority: mapPriority(item.priority),
 
-    priority,
+    /*
+     * `urgency` is not persisted on the complaint document and is
+     * not returned by the list endpoint, so the list view has no
+     * urgency to show.
+     */
+    urgency: null,
 
-    urgency,
-
-    sentiment: "Neutral",
+    sentiment: mapSentiment(item.sentiment),
 
     status,
 
     escalated,
 
+    /*
+     * The only validation signal the list endpoint carries is
+     * whether the workflow flagged the complaint for manual
+     * review. Anything else is unknown here.
+     */
     validation: item.manual_review_required
       ? "Manual Review Required"
-      : "Pending",
+      : null,
 
-    assigneeId:
-      item.assigned_to ?? undefined,
+    assigneeId: item.assigned_to ?? undefined,
 
     createdAt,
 
     updatedAt,
 
-    reference:
-      item.order_id ?? undefined,
+    reference: item.order_id ?? undefined,
 
-    intelligence: {
-      summary:
-        "Open this complaint to view its complete SupportNova intelligence analysis.",
+    /*
+     * The list endpoint intentionally returns no analysis body,
+     * no ground-truth validation detail and no activity history.
+     * ComplaintDetail loads those from
+     * GET /api/complaints/{id}/analysis and
+     * GET /api/complaints/{id}/activity.
+     */
+    intelligence: null,
 
-      primaryIssue: item.title,
+    validationDetail: null,
 
-      secondaryIssues: [],
+    escalationAssessment: escalated
+      ? {
+          required: true,
+          level: mapEscalationLevel(
+            item.escalation_level,
+          ),
+          reason: "",
+          validation: null,
+        }
+      : null,
 
-      category:
-        "Open complaint analysis",
-
-      subcategory:
-        "Open complaint analysis",
-
-      sentiment: "Neutral",
-
-      urgency,
-
-      priority,
-
-      productService: product,
-
-      entities: [
-        item.order_id
-          ? `Order: ${item.order_id}`
-          : "",
-
-        item.transaction_id
-          ? `Transaction: ${item.transaction_id}`
-          : "",
-
-        item.product
-          ? `Product: ${item.product}`
-          : "",
-
-        item.amount
-          ? `Amount: ${item.amount}`
-          : "",
-
-        item.date
-          ? `Date: ${item.date}`
-          : "",
-      ].filter(Boolean),
-
-      department,
-
-      escalation: escalated,
-
-      reason: item.manual_review_required
-        ? "Manual review is required."
-        : "",
-
-      recommendation:
-        "Open the complaint to view classification, policy, resolution, escalation and agent guidance.",
-
-      agentGuidance: [],
-
-      clarificationQuestions: [],
-    },
-
-    validationDetail: {
-      overall: item.manual_review_required
-        ? "Manual Review Required"
-        : "Pending",
-
-      fields: [],
-
-      policyValidated: false,
-
-      resolutionValidated: false,
-    },
-
-    escalationAssessment: {
-      required: escalated,
-
-      level: escalated
-        ? "Supervisor Review"
-        : "No Escalation",
-
-      reason: item.manual_review_required
-        ? "Manual review is required."
-        : "",
-
-      validation: "Pending",
-    },
-
-    timeline: [
-      {
-        id: `${item.id}-created`,
-        timestamp: createdAt,
-        type: "submitted",
-        title: "Complaint submitted",
-        actor: "System",
-        actorRole: "System",
-      },
-    ],
+    timeline: [],
   };
 }
 
@@ -425,16 +389,10 @@ export function DataProvider({
     useState<Complaint[]>([]);
 
   const [customers] =
-    useState<Customer[]>(seedCustomers);
-
-  const [rules, setRules] =
-    useState<RoutingRule[]>(seedRules);
-
-  const [auditLogs, setAuditLogs] =
-    useState<AuditLog[]>(seedLogs);
+    useState<Customer[]>([]);
 
   const [notifications, setNotifications] =
-    useState<NotificationItem[]>(seedNotes);
+    useState<NotificationItem[]>([]);
 
   const [loadingComplaints, setLoadingComplaints] =
     useState(false);
@@ -519,45 +477,6 @@ export function DataProvider({
   );
 
   /* =======================================================
-     LOCAL AUDIT
-     ======================================================= */
-
-  const log = useCallback(
-    (
-      action: string,
-      resource: string,
-      details: string,
-      result: AuditLog["result"] = "Success",
-    ) => {
-      const entry: AuditLog = {
-        id: `a-${Date.now()}`,
-
-        timestamp:
-          new Date().toISOString(),
-
-        user:
-          user?.name ?? "System",
-
-        action,
-
-        resource,
-
-        result,
-
-        details,
-      };
-
-      setAuditLogs(
-        (previous) => [
-          entry,
-          ...previous,
-        ],
-      );
-    },
-    [user],
-  );
-
-  /* =======================================================
      CREATE COMPLAINT
      ======================================================= */
 
@@ -583,14 +502,19 @@ export function DataProvider({
       const escalation =
         result.escalation;
 
-      const severity =
-        escalation?.level;
-
+      /*
+       * Priority, urgency and sentiment come from the analysis
+       * the backend just produced. When the analysis did not
+       * produce them they stay null rather than defaulting.
+       */
       const priority =
-        mapPriority(severity);
+        mapPriority(result.priority);
 
-      const urgency =
-        mapUrgency(severity);
+      /*
+       * The analysis payload carries no urgency field, so there
+       * is nothing honest to show for it.
+       */
+      const urgency = null;
 
       const sentiment =
         mapSentiment(
@@ -611,15 +535,14 @@ export function DataProvider({
         new Date().toISOString();
 
       const product =
-        result.entities?.product ??
-        draft.productService?.trim() ??
-        "Unspecified";
+        result.entities?.product ||
+        draft.productService?.trim() ||
+        null;
 
       const department =
-        result.routing?.primary_department ??
-        result.classification
-          ?.department ??
-        "Unassigned";
+        result.routing?.primary_department ||
+        result.classification?.department ||
+        null;
 
       const created: Complaint = {
         id: result.complaint.id,
@@ -633,11 +556,10 @@ export function DataProvider({
         customerId: user.id,
 
         category:
-          result.classification.category,
+          result.classification?.category || null,
 
         subcategory:
-          result.classification
-            .subcategory,
+          result.classification?.subcategory || null,
 
         department,
 
@@ -656,9 +578,9 @@ export function DataProvider({
           false,
 
         validation:
-          escalation?.required
+          result.manual_review_required
             ? "Manual Review Required"
-            : "Pending",
+            : null,
 
         createdAt: now,
 
@@ -670,8 +592,7 @@ export function DataProvider({
           undefined,
 
         contactChannel:
-          draft.contactChannel ??
-          "Portal",
+          draft.contactChannel,
 
         customerType:
           draft.customerType,
@@ -694,12 +615,10 @@ export function DataProvider({
           secondaryIssues: [],
 
           category:
-            result.classification
-              .category,
+            result.classification?.category || null,
 
           subcategory:
-            result.classification
-              .subcategory,
+            result.classification?.subcategory || null,
 
           sentiment,
 
@@ -763,9 +682,9 @@ export function DataProvider({
 
         validationDetail: {
           overall:
-            escalation?.required
+            result.manual_review_required
               ? "Manual Review Required"
-              : "Pending",
+              : null,
 
           fields: [],
 
@@ -780,22 +699,22 @@ export function DataProvider({
             ),
         },
 
-        escalationAssessment: {
-          required:
-            escalation?.required ??
-            false,
+        escalationAssessment: escalation
+          ? {
+              required:
+                escalation.required ?? false,
 
-          level:
-            mapEscalationLevel(
-              escalation?.level,
-            ),
+              level:
+                mapEscalationLevel(
+                  escalation.level,
+                ),
 
-          reason:
-            escalation?.reason ??
-            "",
+              reason:
+                escalation.reason ?? "",
 
-          validation: "Pending",
-        },
+              validation: null,
+            }
+          : null,
 
         missingInfo:
           result.clarification_questions
@@ -851,12 +770,6 @@ export function DataProvider({
         ],
       );
 
-      log(
-        "Created complaint",
-        created.id,
-        created.subject,
-      );
-
       setNotifications(
         (previous) => [
           {
@@ -890,7 +803,7 @@ export function DataProvider({
 
       return created;
     },
-    [user, log, refreshComplaints],
+    [user, refreshComplaints],
   );
 
   /* =======================================================
@@ -976,15 +889,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        internal
-          ? "Added internal note"
-          : "Added comment",
-        id,
-        body,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1041,13 +947,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        "Changed complaint status",
-        id,
-        `Status set to ${status}`,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1076,13 +977,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        "Changed priority",
-        id,
-        `Priority set to ${priority}`,
-      );
     },
-    [user, updateComplaint, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1112,58 +1008,8 @@ export function DataProvider({
         },
       );
 
-      log(
-        "Assigned complaint",
-        id,
-        `Assigned to ${assigneeName}`,
-      );
     },
-    [user, updateComplaint, log],
-  );
-
-  /* =======================================================
-     RULES
-     ======================================================= */
-
-  const toggleRule = useCallback(
-    (id: string) => {
-      const current =
-        rules.find(
-          (rule) => rule.id === id,
-        );
-
-      if (!current) return;
-
-      setRules(
-        (previous) =>
-          previous.map(
-            (rule) =>
-              rule.id === id
-                ? {
-                    ...rule,
-
-                    status:
-                      rule.status ===
-                      "Active"
-                        ? "Disabled"
-                        : "Active",
-
-                    updatedAt:
-                      new Date().toISOString(),
-                  }
-                : rule,
-          ),
-      );
-
-      log(
-        current.status === "Active"
-          ? "Disabled routing rule"
-          : "Enabled routing rule",
-        id,
-        current.subcategory,
-      );
-    },
-    [rules, log],
+    [user, updateComplaint],
   );
 
   /* =======================================================
@@ -1224,14 +1070,6 @@ export function DataProvider({
 
       articles,
 
-      rules,
-
-      documents,
-
-      reports,
-
-      auditLogs,
-
       notifications,
 
       loadingComplaints,
@@ -1257,8 +1095,6 @@ export function DataProvider({
 
       assignTo,
 
-      toggleRule,
-
       markNotificationRead,
 
       markAllNotificationsRead,
@@ -1269,10 +1105,6 @@ export function DataProvider({
       complaints,
       customers,
       articles,
-      rules,
-      documents,
-      reports,
-      auditLogs,
       notifications,
       loadingComplaints,
       complaintError,
@@ -1285,7 +1117,6 @@ export function DataProvider({
       setStatus,
       setPriority,
       assignTo,
-      toggleRule,
       markNotificationRead,
       markAllNotificationsRead,
       getCustomer,

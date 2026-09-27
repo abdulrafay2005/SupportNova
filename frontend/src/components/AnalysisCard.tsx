@@ -5,15 +5,27 @@ import { UrgencyBadge } from "@/components/UrgencyBadge";
 import { PriorityBadge } from "@/components/PriorityBadge";
 
 export function AnalysisCard({ intelligence }: { intelligence: Intelligence }) {
+  /*
+   * Any field the analysis did not produce is reported as
+   * "Not available" rather than being filled with a default.
+   */
+  const show = (value: string | null | undefined) =>
+    value && value.trim() ? value : "Not available";
+
   const rows: { label: string; value: string }[] = [
-    { label: "Primary issue", value: intelligence.primaryIssue },
-    { label: "Category", value: intelligence.category },
-    { label: "Subcategory", value: intelligence.subcategory },
-    { label: "Product / service", value: intelligence.productService },
-    { label: "Department", value: intelligence.department },
-    { label: "Supporting department", value: intelligence.supportingDepartment ?? "—" },
+    { label: "Primary issue", value: show(intelligence.primaryIssue) },
+    { label: "Category", value: show(intelligence.category) },
+    { label: "Subcategory", value: show(intelligence.subcategory) },
+    { label: "Product / service", value: show(intelligence.productService) },
+    { label: "Department", value: show(intelligence.department) },
+    { label: "Supporting department", value: show(intelligence.supportingDepartment) },
     { label: "Escalation", value: intelligence.escalation ? "Required" : "Not required" },
-    { label: "Priority", value: PRIORITY_LABEL[intelligence.priority] },
+    {
+      label: "Priority",
+      value: intelligence.priority
+        ? PRIORITY_LABEL[intelligence.priority]
+        : "Not available",
+    },
   ];
 
   return (
@@ -26,7 +38,7 @@ export function AnalysisCard({ intelligence }: { intelligence: Intelligence }) {
       </div>
       <div className="border-b border-line px-4 py-3">
         <p className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">Complaint summary</p>
-        <p className="mt-1 text-[13px] text-ink-secondary">{intelligence.summary}</p>
+        <p className="mt-1 text-[13px] text-ink-secondary">{show(intelligence.summary)}</p>
       </div>
       <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
         {rows.map((row) => (

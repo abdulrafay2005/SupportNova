@@ -122,3 +122,54 @@ class CustomerRespondRequest(BaseModel):
 
 class UserStatusRequest(BaseModel):
     status: str
+
+
+# -------------------------
+# Admin staff provisioning
+# -------------------------
+
+class StaffCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=256)
+    role: str
+    department: Optional[str] = None
+    status: str = "Active"
+
+    @field_validator("name")
+    @classmethod
+    def reject_blank_name(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 2:
+            raise ValueError("must be at least 2 characters")
+        return value
+
+
+class StaffUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
+    role: Optional[str] = None
+    department: Optional[str] = None
+    status: Optional[str] = None
+
+
+# -------------------------
+# Department management
+# -------------------------
+
+class DepartmentCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def reject_blank_department(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 2:
+            raise ValueError("must be at least 2 characters")
+        return value
+
+
+class DepartmentUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
+    description: Optional[str] = None
+    status: Optional[str] = None

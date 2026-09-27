@@ -1,64 +1,190 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
+import { Input } from "@/components/Input";
 import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/Pagination";
 import { SearchBar } from "@/components/SearchBar";
 import { Select } from "@/components/Select";
-import { useData } from "@/context/DataContext";
+import { StatCard } from "@/components/StatCard";
+import {
+  getAdminAuditLogs,
+  getAdminAuditSummary,
+  type AuditLogsResponse,
+  type AuditSummary,
+} from "@/api/management";
 import { formatDateTime } from "@/utils/dates";
-import { cn } from "@/utils/cn";
 
 const PAGE_SIZE = 10;
 
+function detailText(details: Record<string, unknown>) {
+  const entries = Object.entries(details ?? {}).filter(
+    ([, value]) =>
+      value !== null &&
+      value !== undefined &&
+      value !== "" &&
+      !(typeof value === "object" && Object.keys(value).length === 0),
+  );
+
+  if (entries.length === 0) return "—";
+
+  return entries
+    .map(([key, value]) =>
+      typeof value === "object"
+        ? `${key}: ${JSON.stringify(value)}`
+        : `${key}: ${String(value)}`,
+    )
+    .join(" · ");
+}
+
 export function AuditLogs() {
-  const { auditLogs } = useData();
+  const [data, setData] = useState<AuditLogsResponse | null>(null);
+  const [summary, setSummary] = useState<AuditSummary | null>(null);
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState("");
+  const [action, setAction] = useState("");
+  const [actorRole, setActorRole] = useState("");
+  const [entityType, setEntityType] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return auditLogs.filter((l) => {
-      if (result && l.result !== result) return false;
-      if (!q) return true;
-      return `${l.user} ${l.action} ${l.resource} ${l.details}`.toLowerCase().includes(q);
-    });
-  }, [auditLogs, query, result]);
+  const load = useCallback(async () => {
+    setLoading(true);
 
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pages);
-  const slice = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+    try {
+      const [logs, activity] = await Promise.all([
+        getAdminAuditLogs({
+          limit: PAGE_SIZE,
+          page,
+          search: query.trim() || undefined,
+          action: action || undefined,
+          actor_role: actorRole || undefined,
+          entity_type: entityType || undefined,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+        }),
+        getAdminAuditSummary(30),
+      ]);
+
+      setData(logs);
+      setSummary(activity);
+      setError(null);
+    } catch (e: unknown) {
+      const detail = (e as { response?: { data?: { detail?: unknown } } })
+        ?.response?.data?.detail;
+      setError(
+        typeof detail === "string" ? detail : "Unable to load audit logs.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [page, query, action, actorRole, entityType, dateFrom, dateTo]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function resetToFirstPage<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      setPage(1);
+    };
+  }
+
+  const logs = data?.logs ?? [];
 
   return (
     <div>
-      <PageHeader title="Audit logs" description="A record of administrative and case actions in this workspace." />
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-        <SearchBar
-          value={query}
-          onChange={(v) => {
-            setQuery(v);
-            setPage(1);
-          }}
-          placeholder="Search user, action, resource..."
-          className="sm:max-w-sm"
+      <PageHeader
+        title="Audit logs"
+        description="Every administrative and workflow action recorded by the backend audit trail."
+      />
+
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Recorded events" value={summary?.total_logs ?? 0} />
+        <StatCard
+          label="Last 30 days"
+          value={summary?.logs_in_window ?? 0}
+          tone="info"
         />
-        <Select
-          options={[
-            { value: "Success", label: "Success" },
-            { value: "Failed", label: "Failed" },
-          ]}
-          placeholder="All results"
-          value={result}
-          onChange={(e) => {
-            setResult(e.target.value);
-            setPage(1);
-          }}
-          className="sm:w-40"
+        <StatCard
+          label="Distinct actions"
+          value={Object.keys(summary?.action_distribution ?? {}).length}
+        />
+        <StatCard
+          label="Last activity"
+          value={
+            summary?.last_activity_at
+              ? formatDateTime(summary.last_activity_at)
+              : "—"
+          }
         />
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState title="No log entries" description="Nothing matches the current filters." />
+      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        <SearchBar
+          value={query}
+          onChange={resetToFirstPage(setQuery)}
+          placeholder="Search action or entity..."
+          className="lg:col-span-2"
+        />
+        <Select
+          options={(data?.available_actions ?? []).map((value) => ({
+            value,
+            label: value,
+          }))}
+          placeholder="All actions"
+          value={action}
+          onChange={(e) => resetToFirstPage(setAction)(e.target.value)}
+        />
+        <Select
+          options={(data?.available_roles ?? []).map((value) => ({
+            value,
+            label: value,
+          }))}
+          placeholder="All roles"
+          value={actorRole}
+          onChange={(e) => resetToFirstPage(setActorRole)(e.target.value)}
+        />
+        <Select
+          options={(data?.available_entity_types ?? []).map((value) => ({
+            value,
+            label: value,
+          }))}
+          placeholder="All entities"
+          value={entityType}
+          onChange={(e) => resetToFirstPage(setEntityType)(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => resetToFirstPage(setDateFrom)(e.target.value)}
+            aria-label="From date"
+          />
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => resetToFirstPage(setDateTo)(e.target.value)}
+            aria-label="To date"
+          />
+        </div>
+      </div>
+
+      {error && (
+        <p className="mb-3 rounded border border-danger/30 p-3 text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+
+      {loading && !data ? (
+        <p className="text-[13px] text-ink-muted">Loading audit logs…</p>
+      ) : logs.length === 0 ? (
+        <EmptyState
+          title="No log entries"
+          description="Nothing matches the current filters."
+        />
       ) : (
         <>
           <div className="panel hidden overflow-hidden md:block">
@@ -67,48 +193,86 @@ export function AuditLogs() {
                 <thead>
                   <tr className="border-b border-line bg-canvas-subtle text-[11px] uppercase tracking-wide text-ink-muted">
                     <th className="px-3 py-2 font-medium">Timestamp</th>
-                    <th className="px-3 py-2 font-medium">User</th>
+                    <th className="px-3 py-2 font-medium">Actor</th>
+                    <th className="px-3 py-2 font-medium">Role</th>
                     <th className="px-3 py-2 font-medium">Action</th>
-                    <th className="px-3 py-2 font-medium">Resource</th>
-                    <th className="px-3 py-2 font-medium">Result</th>
+                    <th className="px-3 py-2 font-medium">Entity</th>
                     <th className="px-3 py-2 font-medium">Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {slice.map((l) => (
-                    <tr key={l.id} className="border-b border-line last:border-0 hover:bg-canvas-subtle">
-                      <td className="whitespace-nowrap px-3 py-2 text-[12px] tabular text-ink-muted">{formatDateTime(l.timestamp)}</td>
-                      <td className="px-3 py-2 text-ink">{l.user}</td>
-                      <td className="px-3 py-2 text-ink-secondary">{l.action}</td>
-                      <td className="px-3 py-2 font-mono text-[12px]">{l.resource}</td>
-                      <td className="px-3 py-2">
-                        <span className={cn("text-[12px] font-medium", l.result === "Success" ? "text-success" : "text-danger")}>
-                          {l.result}
-                        </span>
+                  {logs.map((log) => (
+                    <tr
+                      key={log.id}
+                      className="border-b border-line last:border-0 hover:bg-canvas-subtle"
+                    >
+                      <td className="whitespace-nowrap px-3 py-2 text-[12px] tabular text-ink-muted">
+                        {log.created_at ? formatDateTime(log.created_at) : "—"}
                       </td>
-                      <td className="max-w-[280px] px-3 py-2 text-[12px] text-ink-muted">{l.details}</td>
+                      <td className="px-3 py-2 text-ink">
+                        {log.actor_name ?? (
+                          <span className="font-mono text-[12px] text-ink-muted">
+                            {log.actor_id ?? "—"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-ink-secondary">
+                        {log.actor_role ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-ink-secondary">
+                        {log.action ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-[12px]">
+                        {log.entity_type ?? "—"}
+                        {log.entity_id ? ` · ${log.entity_id}` : ""}
+                      </td>
+                      <td className="max-w-[280px] truncate px-3 py-2 text-[12px] text-ink-muted">
+                        {detailText(log.details)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
+
           <div className="space-y-2 md:hidden">
-            {slice.map((l) => (
-              <div key={l.id} className="panel p-3">
-                <p className="text-[12px] text-ink-faint">{formatDateTime(l.timestamp)}</p>
-                <p className="text-[13px] font-medium text-ink">{l.action}</p>
-                <p className="text-[12px] text-ink-secondary">
-                  {l.user} · {l.resource}
+            {logs.map((log) => (
+              <div key={log.id} className="panel p-3">
+                <p className="text-[12px] text-ink-faint">
+                  {log.created_at ? formatDateTime(log.created_at) : "—"}
                 </p>
-                <p className="mt-1 text-[12px] text-ink-muted">{l.details}</p>
+                <p className="text-[13px] font-medium text-ink">
+                  {log.action ?? "—"}
+                </p>
+                <p className="text-[12px] text-ink-secondary">
+                  {log.actor_name ?? log.actor_id ?? "—"} ·{" "}
+                  {log.actor_role ?? "—"}
+                </p>
+                <p className="mt-1 text-[12px] text-ink-muted">
+                  {detailText(log.details)}
+                </p>
               </div>
             ))}
           </div>
+
           <div className="mt-3">
-            <Pagination page={safePage} pageSize={PAGE_SIZE} total={filtered.length} onPageChange={setPage} />
+            <Pagination
+              page={data?.page ?? 1}
+              pageSize={data?.limit ?? PAGE_SIZE}
+              total={data?.total ?? 0}
+              onPageChange={setPage}
+            />
           </div>
         </>
+      )}
+
+      {data && !data.result_filter_available && (
+        <p className="mt-3 text-[11px] text-ink-faint">
+          The audit trail records actor, role, action, entity and timestamp. It
+          stores no success or failure outcome, so results cannot be filtered
+          on one.
+        </p>
       )}
     </div>
   );

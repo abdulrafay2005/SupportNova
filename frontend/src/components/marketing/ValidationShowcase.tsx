@@ -1,14 +1,24 @@
 import { useState } from "react";
 import { AlertTriangle, ArrowDown, ArrowRight, Check } from "lucide-react";
-import { useData } from "@/context/DataContext";
+import { exampleComplaints } from "@/data/mockData";
 import { cn } from "@/utils/cn";
 
 /** Dark-section comparison: generated recommendation → Python ground truth → result. */
+/*
+ * Public marketing preview.
+ *
+ * This renders a fixed illustrative record from
+ * `@/data/mockData`, NOT live data. It deliberately no longer
+ * reads DataContext: the landing page is public, and the signed-in
+ * user's real complaints must never be rendered as marketing
+ * material.
+ */
 export function ValidationShowcase() {
-  const { complaints } = useData();
   const [mode, setMode] = useState<"match" | "mismatch">("match");
-  const c = complaints.find((x) => x.id === (mode === "match" ? "SN-000124" : "SN-000131"));
-  if (!c) return null;
+  const c = exampleComplaints.find(
+    (x) => x.id === (mode === "match" ? "SN-000124" : "SN-000131"),
+  );
+  if (!c?.validationDetail) return null;
   const fields = c.validationDetail.fields;
   const ok = c.validationDetail.overall === "Match";
 

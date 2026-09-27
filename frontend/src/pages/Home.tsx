@@ -1,30 +1,17 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  ArrowRight,
-  BookOpen,
-  ClipboardList,
-  FileCheck2,
-  GitBranch,
-  History,
-  Scale,
-  Search,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { SiteShell } from "@/components/PublicHeader";
 import { buttonStyles } from "@/components/Button";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { AgentWorkspace } from "@/components/marketing/AgentWorkspace";
 import { Faq, type FaqItem } from "@/components/marketing/Faq";
 import { HeroPreview } from "@/components/marketing/HeroPreview";
-import { ProductTabs } from "@/components/marketing/ProductTabs";
 import { Reveal, SectionHeading } from "@/components/marketing/Reveal";
 import { TrackingCard } from "@/components/marketing/TrackingCard";
 import { ValidationShowcase } from "@/components/marketing/ValidationShowcase";
 import { WorkflowRail } from "@/components/marketing/WorkflowRail";
-import { useData } from "@/context/DataContext";
-import { complexExample, hardCases, kbCategories } from "@/data/mockData";
-import { formatDate } from "@/utils/dates";
-import { cn } from "@/utils/cn";
+import { complexExample, exampleComplaints } from "@/data/mockData";
 
 const FAQ: FaqItem[] = [
   {
@@ -49,21 +36,27 @@ const FAQ: FaqItem[] = [
   },
 ];
 
-const TRUST = [
-  { icon: ClipboardList, title: "Structured complaint intelligence", body: "Issue, category, sentiment, urgency and priority recorded the same way every time." },
-  { icon: FileCheck2, title: "Policy traceability", body: "Each recommendation points to the policy, section and version it relies on." },
-  { icon: Scale, title: "Ground-truth validation", body: "Generated output is checked against rules before anyone acts on it." },
-  { icon: GitBranch, title: "Clear escalation paths", body: "Defined levels, recorded reasons, and a manual review queue for uncertain cases." },
-  { icon: History, title: "Audit-ready activity", body: "Every status change, reassignment and override is logged with who and when." },
-];
 
+/*
+ * Several sections of this page are commented out below. The
+ * identifiers they used (ProductTabs, TRUST, hardCases,
+ * kbCategories, the Help Center search handler) were removed from
+ * the imports so the module compiles clean; restore them alongside
+ * the section if it is ever brought back.
+ */
 export function Home() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { complaints, articles } = useData();
-  const sample = complaints.find((c) => c.id === "SN-000124");
+  /*
+   * Public marketing preview.
+   *
+   * The landing page renders a fixed illustrative record from
+   * `@/data/mockData` — never live data. Reading DataContext here
+   * would put a signed-in user's real complaint on a public page,
+   * and for anonymous visitors there is nothing to read at all.
+   */
+  const sample = exampleComplaints.find((c) => c.id === "SN-000124");
   const [trackId, setTrackId] = useState("");
-  const [kbQuery, setKbQuery] = useState("");
 
   useEffect(() => {
     const section = (location.state as { section?: string } | null)?.section;
@@ -77,16 +70,6 @@ export function Home() {
     const id = trackId.trim().toUpperCase();
     navigate(id ? `/track?id=${encodeURIComponent(id)}` : "/track");
   };
-
-  const onKbSearch = (e: FormEvent) => {
-    e.preventDefault();
-    const q = kbQuery.trim();
-    navigate(q ? `/help-center?q=${encodeURIComponent(q)}` : "/help-center");
-  };
-
-  const kbPreview = ["kb-returns-01", "kb-delivery-01", "kb-payments-01"]
-    .map((id) => articles.find((a) => a.id === id))
-    .filter((a): a is NonNullable<typeof a> => Boolean(a));
 
   return (
     <SiteShell>
