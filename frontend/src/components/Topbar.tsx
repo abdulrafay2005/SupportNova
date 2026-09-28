@@ -128,65 +128,6 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
-        <div ref={noteRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setNoteOpen((v) => !v)}
-            className="relative rounded-md p-1.5 text-ink-secondary hover:bg-canvas"
-            aria-label="Notifications"
-          >
-            <Bell size={18} />
-            {unread > 0 && (
-              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-danger" />
-            )}
-          </button>
-          {noteOpen && (
-            <div className="absolute right-0 z-30 mt-1 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-md border border-line bg-surface shadow-[var(--shadow-overlay)]">
-              <div className="flex items-center justify-between border-b border-line px-3 py-2">
-                <p className="text-[13px] font-semibold text-ink">Notifications</p>
-                {unread > 0 && (
-                  <button
-                    type="button"
-                    className="text-[12px] text-primary hover:underline"
-                    onClick={markAllNotificationsRead}
-                  >
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              {notifications.length === 0 && (
-                <p className="px-3 py-4 text-[12px] text-ink-muted">
-                  No notifications. SupportNova does not store
-                  notifications yet, so only events from this
-                  session appear here.
-                </p>
-              )}
-              <ul className="max-h-80 overflow-y-auto">
-                {notifications.slice(0, 8).map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex w-full flex-col items-start px-3 py-2.5 text-left hover:bg-canvas-subtle",
-                        !n.read && "bg-primary-subtle/40",
-                      )}
-                      onClick={() => {
-                        markNotificationRead(n.id);
-                        setNoteOpen(false);
-                        navigate(n.href);
-                      }}
-                    >
-                      <span className="text-[13px] font-medium text-ink">{n.title}</span>
-                      <span className="text-[12px] text-ink-muted">{n.body}</span>
-                      <span className="mt-0.5 text-[11px] text-ink-faint">{formatRelative(n.timestamp)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
         <div ref={menuRef} className="relative">
           <button
             type="button"
@@ -218,10 +159,11 @@ export function Topbar() {
               <button
                 type="button"
                 className="block w-full px-3 py-1.5 text-left text-[13px] text-ink-secondary hover:bg-canvas"
-                onClick={() => {
-                  setMenuOpen(false);
-                  logout();
-                }}
+               onClick={() => {
+  setMenuOpen(false);
+  navigate("/login", { replace: true });
+  logout();
+}}
               >
                 Log out
               </button>

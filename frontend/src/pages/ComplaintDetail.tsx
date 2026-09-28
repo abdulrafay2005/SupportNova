@@ -68,6 +68,7 @@ import {
   type Urgency,
   type ValidationState,
 } from "@/types";
+import { api } from "@/api/client";
 
 /*
  * Agent-selectable workflow transitions.
@@ -82,6 +83,11 @@ const AGENT_TRANSITIONS: ComplaintStatus[] = [
   "Awaiting Customer",
   "Escalated",
   "Resolved",
+];
+const MANAGEMENT_TRANSITIONS: ComplaintStatus[] = [
+  "In Progress",
+  "Resolved",
+  "Closed",
 ];
 
 import { formatDateTime, formatRelative } from "@/utils/dates";
@@ -220,6 +226,9 @@ export function ComplaintDetail() {
    * is not assigned to this agent).
    */
   const isAgent = user?.role === "Agent";
+  const isManagement =
+  user?.role === "Manager" ||
+  user?.role === "Admin";
 
   const [actionLoading, setActionLoading] = useState<
     string | null
@@ -261,6 +270,59 @@ export function ComplaintDetail() {
       setActionLoading(null);
     }
   };
+
+const runManagementStatusChange = async (
+  status: ComplaintStatus,
+) => {
+  if (!isManagement) return;
+
+  if (!complaint) {
+    setActionError("Complaint not found.");
+    return;
+  }
+
+  if (complaint.status !== "Escalated") {
+    setActionError(
+      "Management can only override escalated complaints.",
+    );
+    return;
+  }
+
+  if (actionLoading) return;
+
+  setActionLoading(`Management: ${status}`);
+  setActionError(null);
+
+  try {
+    await api.patch(
+      `/api/complaints/${complaint.id}`,
+      {
+        status,
+      },
+    );
+
+    await refreshComplaints();
+    await loadMeta();
+  } catch (error) {
+    const detail = (
+      error as {
+        response?: {
+          data?: {
+            detail?: unknown;
+          };
+        };
+      }
+    )?.response?.data?.detail;
+
+    setActionError(
+      typeof detail === "string"
+        ? detail
+        : `Unable to change the complaint status to "${status}".`,
+    );
+  } finally {
+    setActionLoading(null);
+  }
+};
 
   /*
    * Load the real backend analysis.
@@ -552,14 +614,18 @@ export function ComplaintDetail() {
              * field comparisons.
              */
             fields:
-              analysis.validation?.issues?.map(
-                (issue: string) => ({
-                  field: "Validation",
-                  genai: "Analysis output",
-                  python: issue,
-                  result: "Mismatch",
-                }),
-              ) ?? [],
+                      analysis.validation?.issues?.map(
+              (issue: string | { message: string }) => ({
+                field: "Validation",
+                genai: "Analysis output",
+                python:
+                  typeof issue === "string"
+                    ? issue
+                    : issue.message,
+                result: "Mismatch",
+              }),
+            )
+              ?? [],
 
             policyValidated:
               Boolean(
@@ -811,31 +877,16 @@ export function ComplaintDetail() {
     });
   };
 
-  /*
-   * --------------------------------------------------------
-   * Timeline
-   *
-   * The timeline is ONLY the persistent complaint_activity
-   * records returned by the backend. Nothing is fabricated
-   * on the frontend — if the activity API is unavailable,
-   * the timeline is empty rather than invented.
-   * --------------------------------------------------------
-   */
-
-  const timelineEvents = useMemo(
-    () =>
-      (backendActivity ?? []).map((entry) => ({
-        id: entry.id,
-        timestamp: entry.timestamp,
-        type: entry.type as TimelineEvent["type"],
-        title: entry.title,
-        description: entry.description,
-        actor: entry.actor,
-        actorRole:
-          entry.actorRole as TimelineEvent["actorRole"],
-      })),
-    [backendActivity],
-  );
+const timelineEvents = (backendActivity ?? []).map((entry) => ({
+  id: entry.id,
+  timestamp: entry.timestamp,
+  type: entry.type as TimelineEvent["type"],
+  title: entry.title,
+  description: entry.description,
+  actor: entry.actor,
+  actorRole:
+    entry.actorRole as TimelineEvent["actorRole"],
+}));
 
   return (
     <div>
@@ -1678,6 +1729,63 @@ export function ComplaintDetail() {
                   )}
                 </div>
                 )}
+
+                {isManagement &&
+  complaint.status === "Escalated" && (
+    <div className="mt-4 space-y-3 border-t border-line pt-3">
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">
+          Management override
+        </p>
+
+        <p className="mt-1 text-[12px] text-ink-muted">
+          This complaint is escalated and can be updated by
+          Management or Administration.
+        </p>
+      </div>
+
+      <Select
+        label="Override status"
+        value=""
+        options={[
+          {
+            value: "",
+            label: "Select new status",
+          },
+          ...MANAGEMENT_TRANSITIONS.map(
+            (status) => ({
+              value: status,
+              label: status,
+            }),
+          ),
+        ]}
+        disabled={Boolean(actionLoading)}
+        onChange={(e) => {
+          const next = e.target.value;
+
+          if (!next) return;
+
+          void runManagementStatusChange(
+            next as ComplaintStatus,
+          );
+        }}
+      />
+
+      {actionError && (
+        <p className="rounded-md border border-danger/30 bg-danger/5 px-2.5 py-1.5 text-[12px] text-danger">
+          {actionError}
+        </p>
+      )}
+
+      {actionLoading?.startsWith(
+        "Management:",
+      ) && (
+        <p className="text-[12px] text-ink-muted">
+          Updating complaint…
+        </p>
+      )}
+    </div>
+  )}
               </section>
             </>
           )}

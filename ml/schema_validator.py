@@ -75,12 +75,18 @@ if __name__ == "__main__":
         "escalation": {
             "required": False,
             "level": "",
-            "reason": ""
+            "reason": "",
+            "rules": []
         },
         "routing": {
             "primary_department": "Payments & Finance",
-            "supporting_departments": []
+            "supporting_departments": [],
+            "normal_rule_department": "Payments & Finance"
         },
+        "prompt": {
+    "name": "complaint_analysis",
+    "version": "1.0.0"
+},
         "customer_response": "",
         "follow_up": {
             "required": False,

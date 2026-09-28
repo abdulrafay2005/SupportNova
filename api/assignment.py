@@ -114,7 +114,7 @@ def auto_assign_complaint(
     create_complaint_activity(
         complaint_id=complaint_id,
         activity_type="assigned",
-        title="Complaint automatically assigned to Agent",
+        title="Complaint assigned to Agent",
         description=(
             f"Assigned to {agent.get('name', 'agent')} "
             f"({agent.get('department') or 'no department'})."
@@ -129,7 +129,7 @@ def auto_assign_complaint(
     create_audit_log(
         actor_id="system",
         actor_role="System",
-        action="Complaint automatically assigned",
+        action="Complaint assigned",
         entity_type="complaint",
         entity_id=complaint_id,
         details={

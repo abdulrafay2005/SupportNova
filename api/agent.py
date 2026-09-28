@@ -6,10 +6,12 @@ from fastapi import HTTPException
 from api.database import (
     complaints_collection,
     complaint_activity_collection,
+      users_collection
 )
 from api.audit import create_audit_log
 from api.activity import create_complaint_activity
 from api.analytics import as_utc, build_distribution
+from api.mailer import send_customer_status_update_email
 
 _ACTIVITY_TYPE_BY_STATUS = {
     "In Progress": "status",
@@ -114,7 +116,6 @@ def _update_status(
             "comment": comment
         }
     )
-
     create_complaint_activity(
         complaint_id=complaint_id,
         activity_type=_ACTIVITY_TYPE_BY_STATUS.get(
@@ -130,6 +131,44 @@ def _update_status(
             "new_status": next_status,
         },
     )
+
+        # --------------------------------------------------------
+    # CUSTOMER STATUS EMAIL
+    #
+    # Notify the complaint owner whenever an Agent changes
+    # the complaint status.
+    # --------------------------------------------------------
+
+    customer = None
+
+    try:
+        customer_id = complaint.get("user_id")
+
+        if customer_id:
+            customer = users_collection.find_one(
+                {
+                    "_id": ObjectId(customer_id)
+                }
+            )
+
+    except Exception:
+        customer = None
+
+    if customer and customer.get("email"):
+
+        send_customer_status_update_email(
+            name=customer.get(
+                "name",
+                "Customer"
+            ),
+            email=customer["email"],
+            complaint_id=complaint_id,
+            complaint_title=complaint.get(
+                "title",
+                "SupportNova complaint"
+            ),
+            status=next_status
+        )
 
     return {
         "message": f"Complaint {action.lower()} successfully",

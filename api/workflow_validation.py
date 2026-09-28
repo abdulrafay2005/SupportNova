@@ -1,4 +1,5 @@
 from ml.schema_validator import validate_complaint_result
+from ml.validator import validate_result
 
 
 def _has_security_escalation(analysis: dict) -> bool:
@@ -125,51 +126,62 @@ def _has_policy_conflict(analysis: dict) -> bool:
     return False
 
 
-def _validate_ground_truth(analysis: dict) -> dict:
+def _validate_ground_truth(analysis: dict, rule_result: dict) -> dict:
     """
-    Run the existing SupportNova schema/ground-truth validator
-    without replacing or modifying it.
+    Run both structural schema validation and the independent
+    deterministic ground-truth validator.
+
+    The Rule Engine result is used for ground-truth validation
+    because it is the deterministic source of truth.
     """
 
     try:
 
-        validation_result = validate_complaint_result(
+        schema_result = validate_complaint_result(
             analysis
         )
 
-        if not isinstance(validation_result, dict):
-            return {
-                "valid": False,
-                "result": {
-                    "error": (
-                        "Schema validator returned "
-                        "an unexpected result."
-                    )
-                },
-            }
+        ground_truth_result = validate_result(
+            rule_result
+        )
 
         return {
-            "valid": bool(
-                validation_result.get(
-                    "valid",
-                    False
-                )
+            "valid": (
+                bool(schema_result.get("valid", False))
+                and bool(ground_truth_result.valid)
             ),
-            "result": validation_result,
+
+            "schema_result": schema_result,
+
+            "ground_truth_result": {
+                "valid": bool(
+                    ground_truth_result.valid
+                ),
+                "errors": ground_truth_result.errors,
+                "warnings": ground_truth_result.warnings,
+            }
         }
 
     except Exception as exc:
 
         return {
             "valid": False,
-            "result": {
-                "error": (
-                    f"Ground-truth validation error: {str(exc)}"
-                )
-            },
-        }
 
-def validate_workflow(analysis: dict) -> dict:
+            "schema_result": {
+                "valid": False,
+                "error": str(exc)
+            },
+
+            "ground_truth_result": {
+                "valid": False,
+                "errors": [
+                    str(exc)
+                ],
+                "warnings": []
+            }
+        }
+    
+def validate_workflow(analysis: dict,rule_result: dict) -> dict:
     """
     Decide whether an analyzed complaint can continue through
     automated workflow or requires human review.
@@ -185,7 +197,7 @@ def validate_workflow(analysis: dict) -> dict:
     # ========================================================
 
     ground_truth = _validate_ground_truth(
-        analysis
+        analysis,rule_result
     )
 
     if not ground_truth["valid"]:
@@ -201,7 +213,7 @@ def validate_workflow(analysis: dict) -> dict:
                 "The deterministic complaint analysis "
                 "failed ground-truth validation."
             ),
-            "error": error,
+          
         })
 
     # ========================================================
@@ -293,6 +305,8 @@ def validate_workflow(analysis: dict) -> dict:
         ),
 
         "ground_truth_result": (
-            ground_truth["result"]
-        ),
+    ground_truth.get(
+        "ground_truth_result"
+    )
+),
     }

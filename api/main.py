@@ -1,10 +1,15 @@
 import os
 import sys
+import hashlib
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
 
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Query
+from pydantic import BaseModel
+from typing import Optional
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +19,11 @@ from api.workflow import build_workflow_fields, COMPLAINT_STATUSES
 from api.audit import create_audit_log
 from api.assignment import assign_complaint, auto_assign_complaint
 from api.workflow_validation import validate_workflow
+from api.mailer import(send_customer_registration_email,send_customer_complaint_received_email,send_customer_status_update_email,send_password_reset_email) 
 
 
-# ============================================================
-# PROJECT PATHS
-# ============================================================
+
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ML_DIR = PROJECT_ROOT / "ml"
@@ -83,7 +88,18 @@ ComplaintCreate,
     DepartmentCreateRequest,
     DepartmentUpdateRequest,
 )
+class ForgotPasswordRequest(BaseModel):
+    email: str
 
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 # ============================================================
 # AUTHENTICATION
@@ -403,13 +419,19 @@ def register_user(
         user_data
     )
 
+    # Send welcome email after successful account creation.
+    # Failure here does NOT cancel registration.
+    send_customer_registration_email(
+        name=user_data["name"],
+        email=user_data["email"]
+    )
+
     return {
         "id": str(result.inserted_id),
         "name": user_data["name"],
         "email": user_data["email"],
         "role": user_data["role"]
     }
-
 
 @app.post(
     "/api/auth/login",
@@ -466,6 +488,269 @@ def login_user(
         }
     }
 
+
+# RESET OLD
+# @app.post("/api/auth/forgot-password")
+# def forgot_password(
+#     request: ForgotPasswordRequest
+# ):
+#     email = request.email.lower().strip()
+
+#     user = users_collection.find_one({
+#         "email": email
+#     })
+
+#     # Do not reveal whether the email exists.
+#     if not user:
+#         return {
+#             "message": (
+#                 "If an account exists for this email, "
+#                 "a password reset link has been sent."
+#             )
+#         }
+
+#     # Generate a secure one-time token.
+#     reset_token = secrets.token_urlsafe(32)
+
+#     # Only store the hash in MongoDB.
+#     reset_token_hash = hashlib.sha256(
+#         reset_token.encode()
+#     ).hexdigest()
+
+#     reset_expires_at = (
+#         datetime.now(timezone.utc)
+#         + timedelta(minutes=30)
+#     )
+
+#     users_collection.update_one(
+#         {
+#             "_id": user["_id"]
+#         },
+#         {
+#             "$set": {
+#                 "reset_token_hash": reset_token_hash,
+#                 "reset_token_expires_at": reset_expires_at
+#             }
+#         }
+#     )
+
+#     frontend_url = os.getenv(
+#         "FRONTEND_URL",
+#         "http://localhost:5173"
+#     ).rstrip("/")
+
+#     reset_url = (
+#         f"{frontend_url}/reset-password"
+#         f"?token={reset_token}"
+#     )
+
+#     send_password_reset_email(
+#         name=user.get("name", "Customer"),
+#         email=user["email"],
+#         reset_url=reset_url
+#     )
+
+#     return {
+#         "message": (
+#             "If an account exists for this email, "
+#             "a password reset link has been sent."
+#         )
+#     }
+
+# @app.post("/api/auth/reset-password")
+# def reset_password(
+#     request: ResetPasswordRequest
+# ):
+#     token_hash = hashlib.sha256(
+#         request.token.encode()
+#     ).hexdigest()
+
+#     now = datetime.now(timezone.utc)
+
+#     user = users_collection.find_one({
+#         "reset_token_hash": token_hash,
+#         "reset_token_expires_at": {
+#             "$gt": now
+#         }
+#     })
+
+#     if not user:
+#         raise HTTPException(
+#             status_code=400,
+#             detail="Invalid or expired reset token"
+#         )
+
+#     if len(request.new_password) < 8:
+#         raise HTTPException(
+#             status_code=400,
+#             detail="Password must be at least 8 characters"
+#         )
+
+#     hashed_password = hash_password(
+#         request.new_password
+#     )
+
+#     users_collection.update_one(
+#         {
+#             "_id": user["_id"]
+#         },
+#         {
+#             "$set": {
+#                 "password": hashed_password
+#             },
+#             "$unset": {
+#                 "reset_token_hash": "",
+#                 "reset_token_expires_at": ""
+#             }
+#         }
+#     )
+
+#     return {
+#         "message": "Password reset successfully"
+#     }
+# RESET OLD
+#reset
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(
+    request: ForgotPasswordRequest
+):
+    email = request.email.lower().strip()
+
+    user = users_collection.find_one({
+        "email": email
+    })
+
+    # Do not reveal whether the email exists.
+    if not user:
+        return {
+            "message": (
+                "If an account exists for this email, "
+                "a password reset link has been sent."
+            )
+        }
+
+    # Customer accounts receive password reset emails.
+    # Staff accounts use the authenticated change-password
+    # flow from Settings instead.
+    if user.get("role") != "Customer":
+        return {
+            "message": (
+                "If an account exists for this email, "
+                "a password reset link has been sent."
+            )
+        }
+
+    # Generate a secure one-time token.
+    reset_token = secrets.token_urlsafe(32)
+
+    # Only store the hash in MongoDB.
+    reset_token_hash = hashlib.sha256(
+        reset_token.encode()
+    ).hexdigest()
+
+    reset_expires_at = (
+        datetime.now(timezone.utc)
+        + timedelta(minutes=30)
+    )
+
+    users_collection.update_one(
+        {
+            "_id": user["_id"]
+        },
+        {
+            "$set": {
+                "reset_token_hash": reset_token_hash,
+                "reset_token_expires_at": reset_expires_at
+            }
+        }
+    )
+
+    frontend_url = os.getenv(
+        "FRONTEND_URL",
+        "http://localhost:5173"
+    ).rstrip("/")
+
+    reset_url = (
+        f"{frontend_url}/reset-password"
+        f"?token={reset_token}"
+    )
+
+    send_password_reset_email(
+        name=user.get("name", "Customer"),
+        email=user["email"],
+        reset_url=reset_url
+    )
+
+    return {
+        "message": (
+            "If an account exists for this email, "
+            "a password reset link has been sent."
+        )
+    }
+
+
+@app.post("/api/auth/reset-password")
+def reset_password(
+    request: ResetPasswordRequest
+):
+    token_hash = hashlib.sha256(
+        request.token.encode()
+    ).hexdigest()
+
+    now = datetime.now(timezone.utc)
+
+    user = users_collection.find_one({
+        "reset_token_hash": token_hash,
+        "reset_token_expires_at": {
+            "$gt": now
+        }
+    })
+
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired reset token"
+        )
+
+    # Only Customer accounts use the email reset flow.
+    if user.get("role") != "Customer":
+        raise HTTPException(
+            status_code=403,
+            detail="Password reset by email is available for Customer accounts only"
+        )
+
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters"
+        )
+
+    hashed_password = hash_password(
+        request.new_password
+    )
+
+    users_collection.update_one(
+        {
+            "_id": user["_id"]
+        },
+        {
+            "$set": {
+                "password": hashed_password,
+                "updated_at": now,
+            },
+            "$unset": {
+                "reset_token_hash": "",
+                "reset_token_expires_at": ""
+            }
+        }
+    )
+
+    return {
+        "message": "Password reset successfully"
+    }
+
+#reset
 
 # ============================================================
 # COMPLAINT CREATION
@@ -574,12 +859,31 @@ def create_complaint(
         rule_result
     )
 
-    validation = validate_workflow(analysis)
+    validation = validate_workflow(analysis, rule_result)
 
     analysis["validation"] = validation
     analysis["manual_review_required"] = (
         validation["manual_review_required"]
     )
+
+    analysis["missing_information"] = rule_result.get(
+        "missing_information",
+        {
+            "required": False,
+            "fields": []
+        }
+    )
+
+    analysis["security"] = rule_result.get(
+        "security",
+        {
+            "flagged": False,
+            "prompt_injection": False,
+            "secret_request": False
+        }
+    )
+
+    
 
     # --------------------------------------------------------
     # SLA / PRIORITY PERSISTENCE (additive)
@@ -759,6 +1063,26 @@ def create_complaint(
             timezone.utc
         )
     })
+
+    customer = users_collection.find_one(
+        {
+            "_id": ObjectId(
+                current_user["id"]
+            )
+        }
+    )
+
+    if customer and customer.get("email"):
+
+        send_customer_complaint_received_email(
+            name=customer.get(
+                "name",
+                "Customer"
+            ),
+            email=customer["email"],
+            complaint_id=complaint_id,
+            complaint_title=complaint_data["title"]
+        )
 
     # --------------------------------------------------------
     # Attach the PERSISTED workflow state to the response so
@@ -1403,7 +1727,6 @@ def get_complaint_activity(
 from pydantic import BaseModel
 from typing import Optional
 
-
 class ComplaintUpdateRequest(BaseModel):
     status: Optional[str] = None
     assigned_to: Optional[str] = None
@@ -1536,6 +1859,50 @@ def update_complaint(
         "role",
         "System"
     )
+
+    # --------------------------------------------------------
+    # CUSTOMER STATUS EMAIL
+    # --------------------------------------------------------
+
+    status_changed = (
+        payload.status is not None
+        and payload.status != complaint.get("status")
+    )
+
+    if status_changed:
+
+        customer = None
+
+        try:
+            customer_id = complaint.get("user_id")
+
+            if customer_id:
+                customer = users_collection.find_one(
+                    {
+                        "_id": ObjectId(customer_id)
+                    }
+                )
+
+        except Exception:
+            customer = None
+
+        if customer and customer.get("email"):
+
+            send_customer_status_update_email(
+                name=customer.get(
+                    "name",
+                    "Customer"
+                ),
+                email=customer["email"],
+                complaint_id=complaint_id,
+                complaint_title=complaint.get(
+                    "title",
+                    "SupportNova complaint"
+                ),
+                status=payload.status
+            )
+    
+
 
     if payload.status is not None:
         create_complaint_activity(
@@ -2663,3 +3030,174 @@ def search_knowledge(query: str = Query(..., min_length=1, max_length=300),
                     current_user=Depends(get_current_user)):
     documents = list(knowledge_documents_collection.find({"status": "Active"}))
     return {"query": query, "results": search_documents(documents, query)}
+
+
+@app.patch("/api/admin/knowledge-base/documents/{document_id}")
+def update_knowledge_document(
+    document_id: str,
+    title: str | None = Query(default=None, max_length=200),
+    version: str | None = Query(default=None, max_length=40),
+    current_user=Depends(require_roles("Admin")),
+):
+    updates = {}
+
+    if title is not None and title.strip():
+        updates["title"] = title.strip()
+
+    if version is not None and version.strip():
+        updates["version"] = version.strip()
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    result = knowledge_documents_collection.update_one(
+        {"document_id": document_id},
+        {"$set": updates},
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    create_audit_log(
+        actor_id=current_user["id"],
+        actor_role=current_user["role"],
+        action="Knowledge-base document updated",
+        entity_type="knowledge_document",
+        entity_id=document_id,
+        details=updates,
+    )
+
+    document = knowledge_documents_collection.find_one(
+        {"document_id": document_id}
+    )
+    document.pop("_id", None)
+
+    return document
+
+
+@app.delete("/api/admin/knowledge-base/documents/{document_id}")
+def delete_knowledge_document(
+    document_id: str,
+    current_user=Depends(require_roles("Admin")),
+):
+    result = knowledge_documents_collection.delete_one(
+        {"document_id": document_id}
+    )
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    create_audit_log(
+        actor_id=current_user["id"],
+        actor_role=current_user["role"],
+        action="Knowledge-base document deleted",
+        entity_type="knowledge_document",
+        entity_id=document_id,
+        details={},
+    )
+
+    return {
+        "message": "Document deleted successfully",
+        "document_id": document_id,
+    }
+
+@app.get("/api/admin/knowledge-base/documents/{document_id}")
+def get_knowledge_document(
+    document_id: str,
+    current_user=Depends(require_roles("Admin")),
+):
+    document = knowledge_documents_collection.find_one(
+        {"document_id": document_id},
+        {
+            "_id": 0,
+            "document_id": 1,
+            "filename": 1,
+            "title": 1,
+            "version": 1,
+            "status": 1,
+            "text": 1,
+        },
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found",
+        )
+
+    return document
+
+@app.post("/api/auth/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    current_user=Depends(get_current_user)
+):
+    try:
+        user_object_id = ObjectId(
+            current_user["id"]
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid user ID"
+        )
+
+    user = users_collection.find_one({
+        "_id": user_object_id
+    })
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    if not verify_password(
+        request.current_password,
+        user["password"]
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect"
+        )
+
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 8 characters"
+        )
+
+    if verify_password(
+        request.new_password,
+        user["password"]
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from the current password"
+        )
+
+    hashed_password = hash_password(
+        request.new_password
+    )
+
+    now = datetime.now(timezone.utc)
+
+    users_collection.update_one(
+        {
+            "_id": user_object_id
+        },
+        {
+            "$set": {
+                "password": hashed_password,
+                "updated_at": now,
+            },
+            "$unset": {
+                "reset_token_hash": "",
+                "reset_token_expires_at": ""
+            }
+        }
+    )
+
+    return {
+        "message": "Password changed successfully"
+    }

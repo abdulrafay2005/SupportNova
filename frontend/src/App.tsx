@@ -26,6 +26,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { DepartmentsAdmin } from "@/pages/DepartmentsAdmin";
 import { Documents } from "@/pages/Documents";
 import { ForgotPassword } from "@/pages/ForgotPassword";
+import { ResetPassword } from "@/pages/ResetPassword";
 import { Home } from "@/pages/Home";
 import { HowItWorks } from "@/pages/HowItWorks";
 import { About } from "@/pages/About";
@@ -96,6 +97,10 @@ export default function App() {
               path="/forgot-password"
               element={<ForgotPassword />}
             />
+            <Route
+  path="/reset-password"
+  element={<ResetPassword />}
+/>
 
             {/* =========================
                 PUBLIC / AUTH-AWARE HELP

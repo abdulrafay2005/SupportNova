@@ -125,3 +125,19 @@ export interface AuthSession {
   user: User;
   token: string;
 }
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
+}
+
+export async function changePassword(
+  payload: ChangePasswordPayload,
+): Promise<{ message: string }> {
+  const response = await api.post<{ message: string }>(
+    "/api/auth/change-password",
+    payload,
+  );
+
+  return response.data;
+}

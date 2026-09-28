@@ -14,6 +14,7 @@ from api.activity import create_complaint_activity
 from api.assignment import auto_assign_complaint
 from api.analytics import get_validation_statistics
 from ml.genai import generate_ai_fields, merge_ai_result, openai_enabled
+from api.mailer import send_customer_status_update_email
 
 # ============================================================
 # HELPERS
@@ -300,6 +301,51 @@ def _complete_review(
 
         final_status = "Analyzed"
         assigned_agent = None
+
+            # --------------------------------------------------------
+    # CUSTOMER STATUS EMAIL
+    #
+    # Notify the customer of the final status produced by the
+    # reviewer workflow, including any automatic post-review
+    # assignment.
+    # --------------------------------------------------------
+
+    final_complaint = complaints_collection.find_one(
+        {
+            "_id": complaint_object_id
+        }
+    ) or {}
+
+    customer = None
+
+    try:
+        customer_id = final_complaint.get("user_id")
+
+        if customer_id:
+            customer = users_collection.find_one(
+                {
+                    "_id": ObjectId(customer_id)
+                }
+            )
+
+    except Exception:
+        customer = None
+
+    if customer and customer.get("email"):
+
+        send_customer_status_update_email(
+            name=customer.get(
+                "name",
+                "Customer"
+            ),
+            email=customer["email"],
+            complaint_id=complaint_id,
+            complaint_title=final_complaint.get(
+                "title",
+                "SupportNova complaint"
+            ),
+            status=final_status
+        )
 
     return {
         "message": f"Review action '{action}' completed successfully",

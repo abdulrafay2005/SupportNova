@@ -29,6 +29,36 @@ export function Login() {
     password?: string;
   }>({});
 
+  const quickLogins = [
+    {
+      role: "Admin",
+      email: "admin@test.com",
+      password: "Admin@123",
+    },
+    {
+      role: "Agent",
+      email: "agent@test.com",
+      password: "Agent@123",
+    },
+    {
+      role: "Manager",
+      email: "manager@test.com",
+      password: "Manager@123",
+    },
+    {
+      role: "Reviewer",
+      email: "reviewer@test.com",
+      password: "Reviewer@123",
+    },
+  ];
+
+  const fillQuickLogin = (email: string, password: string) => {
+    setEmail(email);
+    setPassword(password);
+    setError("");
+    setFieldErrors({});
+  };
+
   if (user) {
     return <Navigate to={from} replace />;
   }
@@ -149,6 +179,28 @@ export function Login() {
             {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
+
+        <div className="mt-4">
+          <p className="mb-2 text-center text-[12px] text-ink-muted">
+            Quick Login
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            {quickLogins.map((account) => (
+              <Button
+                key={account.role}
+                type="button"
+                onClick={() =>
+                  fillQuickLogin(account.email, account.password)
+                }
+                disabled={loading}
+                className="w-full"
+              >
+                {account.role}
+              </Button>
+            ))}
+          </div>
+        </div>
 
         <p className="mt-4 text-center text-[13px] text-ink-muted">
           Don't have an account?{" "}

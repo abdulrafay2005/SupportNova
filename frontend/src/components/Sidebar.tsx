@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink,useNavigate } from "react-router-dom";
 import {
   BarChart3,
   BookOpen,
@@ -25,6 +25,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { useUi } from "@/context/UiContext";
 import { cn } from "@/utils/cn";
 import type { Role } from "@/types";
+
 
 interface Item {
   to: string;
@@ -64,7 +65,6 @@ const staffSections: Section[] = [
     items: [
       { to: "/users", label: "Staff & Users", icon: Users, roles: ["Admin"] },
       { to: "/departments", label: "Departments", icon: Building2, roles: ["Admin"] },
-      { to: "/rules", label: "Rules", icon: Shield, roles: ["Admin"] },
       { to: "/documents", label: "Documents", icon: FileStack, roles: ["Admin"] },
       { to: "/audit-logs", label: "Audit Logs", icon: ScrollText, roles: ["Admin"] },
     ],
@@ -165,7 +165,9 @@ function NavItems({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: 
 }
 
 export function Sidebar() {
+   const navigate = useNavigate();
   const { collapsed, mobileOpen, toggleCollapsed, closeMobile } = useUi();
+  
 
   return (
     <>

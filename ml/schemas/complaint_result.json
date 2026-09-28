@@ -1,55 +1,280 @@
 {
-  "complaint": {
-    "id": "",
-    "title": "",
-    "description": ""
-  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SupportNova Complaint Analysis Result",
+  "type": "object",
+  "additionalProperties": false,
 
-  "classification": {
-    "category": "",
-    "subcategory": "",
-    "department": ""
-  },
+  "required": [
+    "complaint",
+    "classification",
+    "sentiment",
+    "entities",
+    "policies",
+    "resolution",
+    "escalation",
+    "routing",
+    "prompt",
+    "customer_response",
+    "follow_up",
+    "agent_guidance",
+    "clarification_questions"
+  ],
 
-  "sentiment": {
-    "label": "",
-    "emotion": ""
-  },
+  "properties": {
 
-  "entities": {
-    "order_id": "",
-    "transaction_id": "",
-    "product": "",
-    "amount": "",
-    "date": ""
-  },
+    "complaint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "description"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
 
-  "policies": [],
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "subcategory",
+        "department"
+      ],
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "subcategory": {
+          "type": "string"
+        },
+        "department": {
+          "type": "string"
+        }
+      }
+    },
 
-  "resolution": {
-    "steps": [],
-    "explanation": ""
-  },
+    "sentiment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "emotion"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "emotion": {
+          "type": "string"
+        }
+      }
+    },
 
-  "escalation": {
-    "required": false,
-    "level": "",
-    "reason": ""
-  },
+    "entities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order_id",
+        "transaction_id",
+        "product",
+        "amount",
+        "date"
+      ],
+      "properties": {
+        "order_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transaction_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "product": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "amount": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
+        },
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
 
-  "routing": {
-    "primary_department": "",
-    "supporting_departments": []
-  },
+    "policies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "Policy_ID",
+          "Policy_Name",
+          "Policy_Rule",
+          "Owner_Department",
+          "Status"
+        ],
+        "properties": {
+          "Policy_ID": {
+            "type": "string"
+          },
+          "Policy_Name": {
+            "type": "string"
+          },
+          "Policy_Rule": {
+            "type": "string"
+          },
+          "Owner_Department": {
+            "type": "string"
+          },
+          "Status": {
+            "type": "string"
+          }
+        }
+      }
+    },
 
-  "customer_response": "",
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps",
+        "explanation"
+      ],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "explanation": {
+          "type": "string"
+        }
+      }
+    },
 
-  "follow_up": {
-    "required": false,
-    "message": ""
-  },
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "level",
+        "reason",
+        "rules"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "level": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "rules": {
+          "type": "array",
+          "items": {}
+        }
+      }
+    },
 
-  "agent_guidance": "",
+    "routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_department",
+        "supporting_departments",
+        "normal_rule_department"
+      ],
+      "properties": {
+        "primary_department": {
+          "type": "string"
+        },
+        "supporting_departments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "normal_rule_department": {
+          "type": "string"
+        }
+      }
+    },
 
-  "clarification_questions": []
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+
+    "customer_response": {
+      "type": "string"
+    },
+
+    "follow_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "message"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+
+    "agent_guidance": {
+      "type": "string"
+    },
+
+    "clarification_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
 }

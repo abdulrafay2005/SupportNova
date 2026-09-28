@@ -175,9 +175,7 @@ def create_intelligence(result):
             "explanation": ""
         },
 
-        # ----------------------------------------------------
         # Deterministic escalation
-        # ----------------------------------------------------
 
         "escalation": {
             "required": escalation.get(
@@ -198,16 +196,11 @@ def create_intelligence(result):
             )
         },
 
-        # ----------------------------------------------------
         # Deterministic routing
-        # ----------------------------------------------------
 
         "routing": routing.copy(),
 
-        # ----------------------------------------------------
         # AI-generated response fields
-        # ----------------------------------------------------
-
         "prompt": {
             "name": "complaint_analysis",
             "version": get_prompt_metadata()["version"]
@@ -228,9 +221,7 @@ def create_intelligence(result):
     return intelligence
 
 
-# ============================================================
 # OPENAI PROMPT
-# ============================================================
 
 def build_openai_prompt(intelligence):
     """
@@ -248,10 +239,7 @@ def build_openai_prompt(intelligence):
         trusted_data
     )
 
-# ============================================================
 # AI GENERATION
-# ============================================================
-
 def generate_ai_fields(intelligence):
     """
     Send trusted SupportNova data to OpenAI and validate
@@ -292,9 +280,7 @@ def generate_ai_fields(intelligence):
             "OpenAI returned an empty response."
         )
 
-    # --------------------------------------------------------
     # Parse JSON
-    # --------------------------------------------------------
 
     try:
 
@@ -308,10 +294,7 @@ def generate_ai_fields(intelligence):
             "OpenAI returned invalid JSON: "
             + str(error)
         )
-
-    # --------------------------------------------------------
     # Schema validation
-    # --------------------------------------------------------
 
     validation = validate_complaint_result(
         {
@@ -327,9 +310,7 @@ def generate_ai_fields(intelligence):
             + str(validation["error"])
         )
 
-    # --------------------------------------------------------
-    # Hallucination / unsupported-claim guard
-    # --------------------------------------------------------
+ # Hallucination / unsupported-claim guard
 
     guard_result = validate_ai_output(
         intelligence,
@@ -348,10 +329,7 @@ def generate_ai_fields(intelligence):
     return ai_data
 
 
-# ============================================================
 # AI RESULT MERGING
-# ============================================================
-
 def merge_ai_result(intelligence, ai_data):
     """
     Merge AI-generated fields into the trusted result.
@@ -363,10 +341,7 @@ def merge_ai_result(intelligence, ai_data):
         intelligence
     )
 
-    # --------------------------------------------------------
     # Fields OpenAI is allowed to generate
-    # --------------------------------------------------------
-
     allowed_ai_fields = {
         "sentiment",
         "entities",
@@ -384,9 +359,8 @@ def merge_ai_result(intelligence, ai_data):
                 ai_data[field]
             )
 
-    # --------------------------------------------------------
-    # Resolution explanation
-    # --------------------------------------------------------
+
+    # Resolution 
 
     if "resolution" in ai_data:
 
@@ -428,10 +402,7 @@ def merge_ai_result(intelligence, ai_data):
 
     return final_result
 
-
-# ============================================================
 # SAFE FALLBACK
-# ============================================================
 
 def safe_ai_fallback(
     intelligence,
@@ -494,11 +465,7 @@ def safe_ai_fallback(
         }
     }
 
-
-# ============================================================
 # COMPLETE AI PIPELINE
-# ============================================================
-
 def analyze_with_ai(result):
     """
     Complete SupportNova AI pipeline.
@@ -535,10 +502,7 @@ def analyze_with_ai(result):
         result
     )
 
-    # --------------------------------------------------------
     # OpenAI disabled
-    # --------------------------------------------------------
-
     if not openai_enabled():
 
         print(
@@ -548,10 +512,7 @@ def analyze_with_ai(result):
 
         return intelligence
 
-    # --------------------------------------------------------
     # OpenAI enabled
-    # --------------------------------------------------------
-
     print(
         "OpenAI enabled. "
         "Sending request..."
@@ -590,10 +551,8 @@ def analyze_with_ai(result):
         )
 
 
-# ============================================================
-# DISPLAY
-# ============================================================
 
+# DISPLAY
 def print_intelligence(result):
     """
     Pretty-print the final SupportNova
@@ -622,11 +581,7 @@ def print_intelligence(result):
         )
     )
 
-
-# ============================================================
 # DIRECT EXECUTION
-# ============================================================
-
 if __name__ == "__main__":
 
     print(

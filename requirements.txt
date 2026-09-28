@@ -12,6 +12,7 @@ python-jose[cryptography]
 passlib[bcrypt]
 email-validator
 bcrypt==4.0.1
+python-multipart
 
 # python -c "import secrets; print(secrets.token_urlsafe(32))"
 # python -m venv .venv
