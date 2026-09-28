@@ -33,8 +33,7 @@ dist/
 *.egg-info/
 
 # ML generated files
-*.pkl
-*.joblib
+
 
 # Logs
 *.log
