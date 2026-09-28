@@ -171,14 +171,31 @@ def test_report_catalogue_lists_the_eight_srs_reports():
     assert [row["report_type"] for row in catalogue["reports"]] == (
         ALL_TYPES
     )
+
+    # CSV is always available (stdlib). XLSX/PDF are advertised only
+    # when the backend library that produces them is installed, so the
+    # catalogue reflects real capability instead of a fixed list.
+    expected_formats = ["csv"]
+    if reports.xlsx_available():
+        expected_formats.append("xlsx")
+    if reports.pdf_available():
+        expected_formats.append("pdf")
+
     assert all(
-        row["export_formats"] == ["csv"]
+        row["export_formats"] == expected_formats
         for row in catalogue["reports"]
     )
+
+    expected_unavailable = set()
+    if not reports.xlsx_available():
+        expected_unavailable.add("xlsx")
+    if not reports.pdf_available():
+        expected_unavailable.add("pdf")
+
     assert {
         row["format"]
         for row in catalogue["export_formats_unavailable"]
-    } == {"pdf", "xlsx"}
+    } == expected_unavailable
 
 
 def test_unknown_report_type_raises(monkeypatch):

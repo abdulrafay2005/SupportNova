@@ -229,12 +229,12 @@ checks = [
     ),
 
     (
+        # The full deterministic routing object must be preserved
+        # verbatim (including normal_rule_department); the AI routing
+        # override must be ignored entirely.
         "Routing",
         final_result["routing"],
-        {
-            "primary_department": trusted_result["routing"]["primary_department"],
-            "supporting_departments": trusted_result["routing"]["supporting_departments"]
-        }
+        trusted_result["routing"]
     ),
 
     (

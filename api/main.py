@@ -2,7 +2,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
@@ -77,6 +77,7 @@ ComplaintCreate,
     AgentResolveRequest,
     AgentEscalateRequest,
     CustomerRespondRequest,
+    CustomerResolutionConfirmRequest,
     UserStatusRequest,
     StaffCreateRequest,
     StaffUpdateRequest,
@@ -123,6 +124,7 @@ from api.agent import (
     escalate_complaint,
     add_agent_comment,
     customer_respond,
+    customer_confirm_resolution,
     get_agent_statistics,
 )
 
@@ -156,6 +158,10 @@ from api.reports import (
     generate_report,
     list_reports,
     render_report_csv,
+    render_report_xlsx,
+    render_report_pdf,
+    xlsx_available,
+    pdf_available,
 )
 from api.sla import build_sla_fields, get_sla_status
 
@@ -200,6 +206,23 @@ app = FastAPI(
     title="SupportNova API",
     version="1.0.0",
     lifespan=lifespan
+)
+
+
+# ============================================================
+# LOGIN PROTECTION  (SRS #43)
+#
+# After LOGIN_MAX_FAILED_ATTEMPTS consecutive failed logins an
+# account is temporarily locked for LOGIN_LOCKOUT_MINUTES. Both
+# are read from the environment so operators can tune them without
+# code changes, and both fall back to safe defaults.
+# ============================================================
+
+LOGIN_MAX_FAILED_ATTEMPTS = int(
+    os.getenv("LOGIN_MAX_FAILED_ATTEMPTS", "5")
+)
+LOGIN_LOCKOUT_MINUTES = int(
+    os.getenv("LOGIN_LOCKOUT_MINUTES", "15")
 )
 
 
@@ -439,14 +462,102 @@ def login_user(
             detail="Account is inactive"
         )
 
+    # --------------------------------------------------------
+    # FAILED-ATTEMPT LOCKOUT  (SRS #43)
+    #
+    # Consecutive failed logins are counted on the user document.
+    # After LOGIN_MAX_FAILED_ATTEMPTS failures the account is
+    # locked for LOGIN_LOCKOUT_MINUTES. The counter resets on a
+    # successful login. All timestamps are real backend times; no
+    # attempt is fabricated. This is a minimal, persistent
+    # mechanism compatible with the existing architecture.
+    # --------------------------------------------------------
+    now = datetime.now(timezone.utc)
+    lockout_until = existing_user.get("lockout_until")
+
+    if lockout_until is not None:
+        # Stored value may be naive (mongo) — compare safely.
+        if lockout_until.tzinfo is None:
+            lockout_until = lockout_until.replace(tzinfo=timezone.utc)
+
+        if lockout_until > now:
+            retry_seconds = int((lockout_until - now).total_seconds())
+            create_audit_log(
+                actor_id=str(existing_user["_id"]),
+                actor_role=existing_user.get("role", "Customer"),
+                action="Login blocked (account locked)",
+                entity_type="user",
+                entity_id=str(existing_user["_id"]),
+                success=False,
+                details={"retry_after_seconds": retry_seconds},
+            )
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "Too many failed login attempts. Try again "
+                    f"in about {max(retry_seconds // 60, 1)} minute(s)."
+                ),
+            )
+
     if not verify_password(
         user.password,
         existing_user["password"]
     ):
 
+        failed = int(existing_user.get("failed_login_attempts", 0)) + 1
+        update = {"failed_login_attempts": failed}
+        locked = failed >= LOGIN_MAX_FAILED_ATTEMPTS
+
+        if locked:
+            update["lockout_until"] = now + timedelta(
+                minutes=LOGIN_LOCKOUT_MINUTES
+            )
+            update["failed_login_attempts"] = 0
+
+        users_collection.update_one(
+            {"_id": existing_user["_id"]},
+            {"$set": update},
+        )
+
+        create_audit_log(
+            actor_id=str(existing_user["_id"]),
+            actor_role=existing_user.get("role", "Customer"),
+            action="Failed login",
+            entity_type="user",
+            entity_id=str(existing_user["_id"]),
+            success=False,
+            details={
+                "failed_attempts": failed,
+                "locked": locked,
+            },
+        )
+
+        if locked:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    "Too many failed login attempts. This account "
+                    f"is locked for {LOGIN_LOCKOUT_MINUTES} minutes."
+                ),
+            )
+
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
+        )
+
+    # Successful login clears any accumulated failure state.
+    if existing_user.get("failed_login_attempts") or existing_user.get(
+        "lockout_until"
+    ):
+        users_collection.update_one(
+            {"_id": existing_user["_id"]},
+            {
+                "$set": {
+                    "failed_login_attempts": 0,
+                    "lockout_until": None,
+                }
+            },
         )
 
     access_token = create_access_token(
@@ -604,6 +715,54 @@ def create_complaint(
 
     if rule_sla_hours:
         analysis["sla_hours"] = rule_sla_hours
+
+    # --------------------------------------------------------
+    # SECURITY SIGNAL PERSISTENCE (additive)
+    #
+    # The rule engine derives a deterministic security signal
+    # (flagged / prompt_injection / secret_request), but
+    # create_intelligence() does not carry it into the AI
+    # result, so it was previously dropped and never stored in
+    # the analysis document. It is attached here, AFTER
+    # validation, exactly like `validation`, `priority` and
+    # `sla_hours` above, so neither the rule engine, the AI
+    # layer nor schema validation is affected.
+    #
+    # Nothing is invented: the value is taken directly from the
+    # rule-engine result. When the rule engine reports no
+    # security object (it always does today) a deterministic
+    # all-false default is stored rather than a fabricated flag.
+    # --------------------------------------------------------
+
+    analysis["security"] = rule_result.get(
+        "security",
+        {
+            "flagged": False,
+            "prompt_injection": False,
+            "secret_request": False,
+        },
+    )
+
+    # --------------------------------------------------------
+    # MISSING-INFORMATION PERSISTENCE (additive)  [SRS #27]
+    #
+    # The rule engine deterministically detects when a complaint
+    # is missing information required to progress (e.g. order_id).
+    # create_intelligence() does not carry this into the AI result,
+    # so it was previously dropped and the frontend/agent could not
+    # know what to ask the customer for. It is attached here, from
+    # the real rule-engine result, exactly like the fields above.
+    # The ask-customer / customer-response continuation is handled
+    # by the existing await-customer + /respond workflow.
+    # --------------------------------------------------------
+
+    analysis["missing_information"] = rule_result.get(
+        "missing_information",
+        {
+            "required": False,
+            "fields": [],
+        },
+    )
 
     workflow_fields = build_workflow_fields(
         analysis=analysis,
@@ -859,7 +1018,10 @@ def _analysis_summaries(complaint_ids: list[str]) -> dict:
 
 
 @app.get("/api/complaints")
-def get_complaints(current_user=Depends(get_current_user)):
+def get_complaints(
+    limit: int = Query(500, ge=1, le=2000),
+    current_user=Depends(get_current_user)
+):
     role = current_user["role"]
 
     if role == "Customer":
@@ -878,10 +1040,14 @@ def get_complaints(current_user=Depends(get_current_user)):
 
     complaints = []
 
+    # Bound the result set so a staff-wide (query={}) read cannot
+    # trigger an unbounded scan. The response contract (a JSON array)
+    # is unchanged; managers/admins have a dedicated paginated
+    # endpoint (/api/management/complaints) for large result sets.
     for complaint in complaints_collection.find(query).sort(
         "created_at",
         -1
-    ):
+    ).limit(limit):
         entry = {
             "id": str(complaint["_id"]),
             "title": complaint["title"],
@@ -2126,6 +2292,30 @@ def respond_to_complaint(
     )
 
 
+# ============================================================
+# CUSTOMER RESOLUTION CONFIRMATION  (SRS #14 / #15)
+#
+# Lets the submitting customer confirm (accept) or reject a
+# resolved/closed complaint. Rejecting reopens the complaint.
+# Authorisation, ownership, status validation, persistence,
+# audit and activity are all enforced in
+# customer_confirm_resolution().
+# ============================================================
+
+@app.post("/api/complaints/{complaint_id}/confirm-resolution")
+def confirm_complaint_resolution(
+    complaint_id: str,
+    request: CustomerResolutionConfirmRequest,
+    current_user=Depends(require_roles("Customer"))
+):
+    return customer_confirm_resolution(
+        complaint_id=complaint_id,
+        customer=current_user,
+        confirmed=request.confirmed,
+        message=request.message or ""
+    )
+
+
 @app.post("/api/agent/{complaint_id}/comment")
 def add_agent_complaint_comment(
     complaint_id: str,
@@ -2296,21 +2486,53 @@ def management_report_export(
     )
 ):
     """
-    Export a generated report.
+    Export a generated report as CSV, XLSX or PDF.
 
-    Only CSV is produced: the backend has no PDF or spreadsheet
-    dependency, and a fabricated file would not be an export.
+    Every format renders the SAME report data, which is built from
+    real database records. A format is only offered when the backend
+    library that produces it is installed; otherwise the request is
+    rejected rather than returning a fabricated file.
     """
 
     requested = (format or "csv").lower()
 
-    if requested != "csv":
+    # Map each format to its (availability, renderer, media type, ext).
+    exporters = {
+        "csv": (True, render_report_csv, "text/csv", "csv"),
+        "xlsx": (
+            xlsx_available(),
+            render_report_xlsx,
+            (
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+            "xlsx",
+        ),
+        "pdf": (
+            pdf_available(),
+            render_report_pdf,
+            "application/pdf",
+            "pdf",
+        ),
+    }
+
+    if requested not in exporters:
         raise HTTPException(
             status_code=400,
             detail=(
-                f"Export format '{requested}' is not available. "
-                "The backend has no PDF or spreadsheet library "
-                "installed, so only CSV export is supported."
+                f"Export format '{requested}' is not supported. "
+                f"Available: {', '.join(sorted(exporters))}."
+            ),
+        )
+
+    available, renderer, media_type, extension = exporters[requested]
+
+    if not available:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Export format '{requested}' is not available: the "
+                "backend library that produces it is not installed."
             ),
         )
 
@@ -2332,12 +2554,16 @@ def management_report_export(
 
     filename = (
         f"supportnova-{report_type}-"
-        f"{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+        f"{datetime.now(timezone.utc).strftime('%Y%m%d')}.{extension}"
     )
 
+    payload = renderer(report)
+    if isinstance(payload, str):
+        payload = payload.encode("utf-8")
+
     return StreamingResponse(
-        iter([render_report_csv(report)]),
-        media_type="text/csv",
+        iter([payload]),
+        media_type=media_type,
         headers={
             "Content-Disposition": (
                 f'attachment; filename="{filename}"'
@@ -2660,6 +2886,17 @@ def list_knowledge_documents(current_user=Depends(require_roles("Admin", "Manage
 
 @app.get("/api/knowledge-base/search")
 def search_knowledge(query: str = Query(..., min_length=1, max_length=300),
+                    limit: int = Query(20, ge=1, le=100),
                     current_user=Depends(get_current_user)):
+    # Only active documents are searchable, and the result set is
+    # bounded so an authenticated user cannot trigger an unbounded
+    # (expensive) scan/return. Ranking still happens over the full
+    # active corpus; only the returned slice is capped.
     documents = list(knowledge_documents_collection.find({"status": "Active"}))
-    return {"query": query, "results": search_documents(documents, query)}
+    results = search_documents(documents, query)
+    return {
+        "query": query,
+        "total": len(results),
+        "limit": limit,
+        "results": results[:limit],
+    }

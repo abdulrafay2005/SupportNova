@@ -1,18 +1,29 @@
 /**
- * STATIC CONTENT FOR THE PUBLIC MARKETING SITE.
+ * STATIC EDITORIAL / MARKETING CONTENT (NOT OPERATIONAL DATA).
  *
- * Nothing in this file is operational data and nothing here is
- * rendered inside the signed-in product. The authenticated
- * application reads complaints, users, departments, audit logs and
- * knowledge-base documents from the API only.
+ * No operational records live here. The authenticated application
+ * reads complaints, users, departments, audit logs, analytics and
+ * knowledge-base documents from the API only — none of those screens
+ * import this file.
  *
  * What remains here:
  *   exampleComplaints / exampleCustomers  illustrative records used
- *                                         by the landing-page
- *                                         product previews
- *   articles / kbCategories               help-centre editorial
- *                                         content (no API yet)
- *   complexExample / hardCases            landing-page copy
+ *                                         ONLY by the public
+ *                                         landing-page product
+ *                                         previews (marketing/*).
+ *   complexExample / hardCases            landing-page copy.
+ *   articles / kbCategories               help-centre EDITORIAL
+ *                                         content. NOTE: the Help
+ *                                         Center (/help-center) is
+ *                                         reachable from both the
+ *                                         public header and the
+ *                                         signed-in sidebar, so this
+ *                                         static editorial content is
+ *                                         rendered inside the product.
+ *                                         It has no backend API yet;
+ *                                         it is fixed documentation
+ *                                         text, not fabricated
+ *                                         operational data.
  *
  * Removed deliberately: demo staff accounts, mock routing rules,
  * mock policy documents and mock notifications. Those screens are

@@ -123,7 +123,11 @@ TESTS = [
             "identity_verification_failed": True,
             "reopened_count": 3
         },
-        ["ESC01", "ESC06", "ESC19", "ESC25"]
+        # The complaint text explicitly states "I already contacted
+        # support before", which is a repeated-submission signal, so
+        # ESC28 correctly fires alongside the account-takeover rules.
+        # The original expectation omitted ESC28 and was outdated.
+        ["ESC01", "ESC06", "ESC19", "ESC25", "ESC28"]
     )
 ]
 

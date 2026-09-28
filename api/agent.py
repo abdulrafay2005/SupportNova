@@ -75,6 +75,20 @@ def _require_assigned_agent(complaint: dict, agent: dict):
         )
 
 
+def _first_response_fields(complaint: dict, now):
+    """First-response SLA capture (SRS #32).
+
+    The first time a staff member acts on a complaint, the real
+    backend timestamp is persisted as `first_response_at`. It is
+    written once and never overwritten, so it reflects the genuine
+    first response rather than the most recent action. Nothing is
+    invented: if no staff action ever occurs, no timestamp exists.
+    """
+    if complaint.get("first_response_at"):
+        return {}
+    return {"first_response_at": now}
+
+
 def _update_status(
     *,
     complaint_id: str,
@@ -97,7 +111,8 @@ def _update_status(
         {
             "$set": {
                 "status": next_status,
-                "updated_at": now
+                "updated_at": now,
+                **_first_response_fields(complaint, now),
             }
         }
     )
@@ -223,7 +238,8 @@ def resolve_complaint(
                 "status": "Resolved",
                 "resolved_at": now,
                 "updated_at": now,
-                "resolution_comment": comment
+                "resolution_comment": comment,
+                **_first_response_fields(complaint, now),
             }
         }
     )
@@ -492,6 +508,189 @@ def customer_respond(
         "message": "Response submitted successfully",
         "complaint_id": complaint_id,
         "status": "In Progress"
+    }
+
+
+# ============================================================
+# CUSTOMER RESOLUTION CONFIRMATION  (SRS #14 / #15)
+#
+# After an agent resolves a complaint the lifecycle finalizes it
+# to "Closed" (see resolve_complaint above). The submitting
+# customer may then either:
+#
+#   * CONFIRM the resolution  -> the complaint stays Closed and a
+#     resolution_confirmed flag + timestamp are persisted, with a
+#     customer-visible activity and an audit record.
+#
+#   * REJECT the resolution   -> the complaint transitions to
+#     "Reopened", is persisted, cleared of closed_at, and returned
+#     to the assigned agent's active work (agent "start" accepts
+#     "Reopened"). An audit record and a customer-visible activity
+#     are written.
+#
+# This is additive: it does not alter the agent resolve/close flow
+# or the existing Awaiting-Customer respond flow. Nothing is
+# invented — every field is derived from the real request and the
+# real persisted complaint.
+# ============================================================
+
+def customer_confirm_resolution(
+    *,
+    complaint_id: str,
+    customer: dict,
+    confirmed: bool,
+    message: str = ""
+):
+    message = (message or "").strip()
+
+    complaint_object_id, complaint = _get_complaint(
+        complaint_id
+    )
+
+    # Ownership: only the submitting customer may confirm/reject.
+    if str(complaint.get("user_id")) != str(customer["id"]):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You do not have permission to respond to "
+                "this complaint"
+            )
+        )
+
+    current_status = complaint.get("status")
+
+    # Confirmation / rejection is only meaningful once a
+    # resolution actually exists for the complaint.
+    if current_status not in {"Resolved", "Closed"}:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This complaint has no resolution to confirm "
+                "or reject yet"
+            )
+        )
+
+    now = datetime.now(timezone.utc)
+
+    if confirmed:
+        # Customer accepts the resolution. Ensure the complaint is
+        # finalized (it normally already is) and record acceptance.
+        update_fields = {
+            "status": "Closed",
+            "resolution_confirmed": True,
+            "resolution_confirmed_at": now,
+            "updated_at": now,
+        }
+
+        if not complaint.get("closed_at"):
+            update_fields["closed_at"] = now
+
+        complaints_collection.update_one(
+            {"_id": complaint_object_id},
+            {"$set": update_fields}
+        )
+
+        create_audit_log(
+            actor_id=customer["id"],
+            actor_role="Customer",
+            action="Customer confirmed resolution",
+            entity_type="complaint",
+            entity_id=complaint_id,
+            details={
+                "previous_status": current_status,
+                "new_status": "Closed",
+                "resolution_confirmed": True,
+            }
+        )
+
+        create_complaint_activity(
+            complaint_id=complaint_id,
+            activity_type="resolution_confirmed",
+            title="Customer confirmed the resolution",
+            description=(
+                message
+                or "Customer confirmed the complaint was resolved."
+            ),
+            actor=customer.get("name", "Customer"),
+            actor_role="Customer",
+            metadata={
+                "previous_status": current_status,
+                "new_status": "Closed",
+            },
+            customer_visible=True,
+        )
+
+        return {
+            "message": "Resolution confirmed",
+            "complaint_id": complaint_id,
+            "status": "Closed",
+            "resolution_confirmed": True,
+        }
+
+    # Customer rejects the resolution -> reopen the complaint.
+    update_fields = {
+        "status": "Reopened",
+        "resolution_confirmed": False,
+        "reopened_at": now,
+        "closed_at": None,
+        "updated_at": now,
+    }
+
+    reopened_count = int(complaint.get("reopened_count", 0)) + 1
+    update_fields["reopened_count"] = reopened_count
+
+    push_update = {"$set": update_fields}
+
+    if message:
+        push_update["$push"] = {
+            "customer_responses": {
+                "message": message,
+                "customer_id": customer["id"],
+                "created_at": now,
+                "type": "resolution_rejected",
+            }
+        }
+
+    complaints_collection.update_one(
+        {"_id": complaint_object_id},
+        push_update
+    )
+
+    create_audit_log(
+        actor_id=customer["id"],
+        actor_role="Customer",
+        action="Customer rejected resolution",
+        entity_type="complaint",
+        entity_id=complaint_id,
+        details={
+            "previous_status": current_status,
+            "new_status": "Reopened",
+            "reopened_count": reopened_count,
+        }
+    )
+
+    create_complaint_activity(
+        complaint_id=complaint_id,
+        activity_type="reopened",
+        title="Customer reopened the complaint",
+        description=(
+            message
+            or "Customer reported the complaint was not resolved."
+        ),
+        actor=customer.get("name", "Customer"),
+        actor_role="Customer",
+        metadata={
+            "previous_status": current_status,
+            "new_status": "Reopened",
+        },
+        customer_visible=True,
+    )
+
+    return {
+        "message": "Complaint reopened",
+        "complaint_id": complaint_id,
+        "status": "Reopened",
+        "reopened_count": reopened_count,
     }
 
 

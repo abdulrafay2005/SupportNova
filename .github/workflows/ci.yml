@@ -1,0 +1,87 @@
+name: CI
+
+# Minimal continuous-integration pipeline for SupportNova.
+#
+# Three independent jobs mirror the three parts of the codebase:
+#   * backend  - FastAPI route/workflow/report tests (mongomock, no live DB)
+#   * ml        - deterministic rule-engine / validator / guard tests
+#                 (trained models are gitignored, so they are built from the
+#                  committed dataset with the existing ml/train.py build script)
+#   * frontend - production build + TypeScript type-check
+#
+# OpenAI stays disabled in CI: the deterministic pipeline must pass on its own.
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+
+env:
+  MONGO_URI: "mongodb://localhost:27017"
+  JWT_SECRET_KEY: "ci-only-secret"
+  OPENAI_ENABLED: "false"
+  OPENAI_API_KEY: "ci-unused"
+  MPLBACKEND: "Agg"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mongomock pytest
+      - name: Backend tests
+        run: pytest api/tests -q
+
+  ml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install matplotlib pytest mongomock
+      - name: Build models from committed dataset
+        run: python ml/train.py
+      - name: ML deterministic tests
+        run: |
+          set -e
+          export PYTHONPATH=".:ml"
+          for t in \
+            test_rule_engine test_escalations test_validator \
+            test_adversarial_security test_knowledge_base test_multi_issue \
+            test_resolution_validation test_hallucination \
+            test_trusted_field_protection test_contradictory_policy \
+            test_ai_output_guard test_ai_failure_workflow \
+            test_prompt_versioning test_full_system test_missing_information; do
+            echo "::group::$t"
+            python "ml/tests/$t.py"
+            echo "::endgroup::"
+          done
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build

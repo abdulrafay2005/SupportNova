@@ -120,6 +120,17 @@ class CustomerRespondRequest(BaseModel):
         return value
 
 
+class CustomerResolutionConfirmRequest(BaseModel):
+    """Customer confirms (accepts) or rejects a resolved complaint.
+
+    confirmed=True  -> the customer accepts the resolution (stays Closed)
+    confirmed=False -> the customer rejects it (complaint is Reopened)
+    """
+
+    confirmed: bool
+    message: Optional[str] = Field(default=None, max_length=10_000)
+
+
 class UserStatusRequest(BaseModel):
     status: str
 

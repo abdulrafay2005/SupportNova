@@ -9,6 +9,15 @@ sys.path.append(
     )
 )
 
+# This test verifies the AI-failure fallback path, which only runs
+# when the AI layer is engaged. `generate_ai_fields` is mocked below
+# to raise, so NO real OpenAI request is ever made: enabling the flag
+# here only forces `analyze_with_ai` to take the try/except fallback
+# branch. Production behaviour is unaffected (the flag is set only in
+# this test process).
+os.environ["OPENAI_ENABLED"] = "true"
+os.environ.setdefault("OPENAI_API_KEY", "test-only-unused")
+
 import genai
 from rule_engine import analyze_complaint
 

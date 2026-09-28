@@ -1,6 +1,8 @@
 import json
 import os
 
+from datetime import datetime, timezone
+
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -426,6 +428,26 @@ def merge_ai_result(intelligence, ai_data):
                     ]
                 )
 
+    # --------------------------------------------------------
+    # AI EXECUTION METADATA (SRS #51)
+    #
+    # Recorded only when the AI layer actually ran, so nothing is
+    # fabricated when OpenAI is disabled (that path returns the
+    # deterministic intelligence untouched and never reaches here).
+    # Every value is real: provider/model are the configured ones,
+    # the prompt name/version come from the prompt manager, and the
+    # timestamp is a real backend time.
+    # --------------------------------------------------------
+    prompt_info = intelligence.get("prompt", {})
+    final_result["ai_metadata"] = {
+        "provider": "openai",
+        "model": MODEL_NAME,
+        "prompt_name": prompt_info.get("name", "complaint_analysis"),
+        "prompt_version": prompt_info.get("version"),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "failure": None,
+    }
+
     return final_result
 
 
@@ -491,6 +513,22 @@ def safe_ai_fallback(
         "ai_guard": {
             "blocked": True,
             "reason": reason
+        },
+
+        # AI execution metadata (SRS #51). This fallback runs only
+        # when the AI layer was engaged and then failed/was rejected,
+        # so the failure reason is recorded here rather than invented.
+        "ai_metadata": {
+            "provider": "openai",
+            "model": MODEL_NAME,
+            "prompt_name": intelligence.get("prompt", {}).get(
+                "name", "complaint_analysis"
+            ),
+            "prompt_version": intelligence.get("prompt", {}).get(
+                "version"
+            ),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "failure": reason,
         }
     }
 

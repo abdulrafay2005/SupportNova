@@ -314,10 +314,61 @@ def department_performance_report(filters):
         row["_id"]: row["agents"] for row in agent_rows
     }
 
+    # First-response SLA (SRS #32): the workflow now persists a real
+    # `first_response_at` timestamp on the first staff action. Where
+    # it exists, the average first-response time is computed from real
+    # backend timestamps; complaints without it are simply excluded
+    # (never back-filled with a guess).
+    first_response_rows = list(
+        complaints_collection.aggregate([
+            {"$match": {"first_response_at": {"$ne": None}}},
+            {
+                "$group": {
+                    "_id": {
+                        "$ifNull": [
+                            "$assigned_department",
+                            UNASSIGNED_LABEL,
+                        ]
+                    },
+                    "responded": {"$sum": 1},
+                    "avg_ms": {
+                        "$avg": {
+                            "$subtract": [
+                                "$first_response_at",
+                                "$created_at",
+                            ]
+                        }
+                    },
+                }
+            },
+        ])
+    )
+
+    first_response_by_department = {
+        row["_id"]: {
+            "responded": row.get("responded", 0),
+            "average_first_response_hours": (
+                round(row["avg_ms"] / 3_600_000, 2)
+                if row.get("avg_ms") is not None
+                else None
+            ),
+        }
+        for row in first_response_rows
+    }
+
+    total_responded = sum(
+        v["responded"] for v in first_response_by_department.values()
+    )
+
     for row in rows:
         row["agents"] = agents_by_department.get(
             row["department"],
             0,
+        )
+        fr = first_response_by_department.get(row["department"], {})
+        row["first_responses"] = fr.get("responded", 0)
+        row["average_first_response_hours"] = fr.get(
+            "average_first_response_hours"
         )
 
     return _envelope(
@@ -340,17 +391,26 @@ def department_performance_report(filters):
             ("closed", "Closed"),
             ("resolution_rate_percent", "Resolution rate %"),
             ("average_resolution_hours", "Avg resolution hours"),
+            ("first_responses", "First responses"),
+            (
+                "average_first_response_hours",
+                "Avg first-response hours",
+            ),
         ),
         rows=rows,
-        unavailable=[
-            {
-                "metric": "first_response_time",
-                "reason": (
-                    "No first-response timestamp is stored by the "
-                    "workflow."
-                ),
-            }
-        ],
+        unavailable=(
+            []
+            if total_responded
+            else [
+                {
+                    "metric": "first_response_time",
+                    "reason": (
+                        "No complaint has a first-response "
+                        "timestamp yet (no staff action recorded)."
+                    ),
+                }
+            ]
+        ),
     )
 
 
@@ -1108,6 +1168,212 @@ def render_report_csv(report: dict) -> str:
 
 
 # ============================================================
+# XLSX / PDF RENDERERS
+#
+# Both render exactly the same real report data as the CSV
+# renderer (header, filters, summary, unavailable metrics and
+# the data rows). Nothing is fabricated: values come straight
+# from the generated report dict, which is built from real
+# database records. The renderers are optional — if the backend
+# library is not installed the caller reports the format as
+# unavailable rather than emitting a fake file.
+# ============================================================
+
+def _optional_import(module_name):
+    try:
+        import importlib
+        return importlib.import_module(module_name)
+    except Exception:
+        return None
+
+
+def xlsx_available() -> bool:
+    return _optional_import("openpyxl") is not None
+
+
+def pdf_available() -> bool:
+    return _optional_import("reportlab") is not None
+
+
+def render_report_xlsx(report: dict) -> bytes:
+    """Render a generated report as a real .xlsx workbook."""
+
+    openpyxl = _optional_import("openpyxl")
+    if openpyxl is None:  # pragma: no cover - environment dependent
+        raise RuntimeError("openpyxl is not installed")
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Report"
+
+    sheet.append(["SupportNova report", report["title"]])
+    sheet.append(["Generated at", _csv_value(report["generated_at"])])
+
+    for key, value in (report.get("filters") or {}).items():
+        if value:
+            sheet.append([f"Filter: {key}", _csv_value(value)])
+
+    sheet.append(["Rows", report.get("row_count", 0)])
+    sheet.append([])
+
+    summary = report.get("summary") or {}
+    if summary:
+        sheet.append(["Summary"])
+        for key, value in summary.items():
+            if isinstance(value, dict):
+                for inner_key, inner_value in value.items():
+                    sheet.append(
+                        [f"{key}.{inner_key}", _csv_value(inner_value)]
+                    )
+            elif isinstance(value, list):
+                for index, item in enumerate(value):
+                    sheet.append([f"{key}[{index}]", _csv_value(item)])
+            else:
+                sheet.append([key, _csv_value(value)])
+        sheet.append([])
+
+    unavailable = report.get("unavailable") or []
+    if unavailable:
+        sheet.append(["Unavailable metrics"])
+        for item in unavailable:
+            sheet.append([item.get("metric"), item.get("reason")])
+        sheet.append([])
+
+    columns = report.get("columns") or []
+    if columns:
+        sheet.append([column["label"] for column in columns])
+        for row in report.get("rows") or []:
+            sheet.append([
+                _csv_value(row.get(column["key"]))
+                for column in columns
+            ])
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def render_report_pdf(report: dict) -> bytes:
+    """Render a generated report as a real PDF document."""
+
+    reportlab = _optional_import("reportlab")
+    if reportlab is None:  # pragma: no cover - environment dependent
+        raise RuntimeError("reportlab is not installed")
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        title=f"SupportNova - {report['title']}",
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    story.append(
+        Paragraph(f"SupportNova report: {report['title']}", styles["Title"])
+    )
+    story.append(
+        Paragraph(
+            f"Generated at: {_csv_value(report['generated_at'])}",
+            styles["Normal"],
+        )
+    )
+
+    for key, value in (report.get("filters") or {}).items():
+        if value:
+            story.append(
+                Paragraph(
+                    f"Filter — {key}: {_csv_value(value)}",
+                    styles["Normal"],
+                )
+            )
+
+    story.append(
+        Paragraph(f"Rows: {report.get('row_count', 0)}", styles["Normal"])
+    )
+    story.append(Spacer(1, 12))
+
+    summary = report.get("summary") or {}
+    if summary:
+        story.append(Paragraph("Summary", styles["Heading2"]))
+        for key, value in summary.items():
+            if isinstance(value, dict):
+                for inner_key, inner_value in value.items():
+                    story.append(
+                        Paragraph(
+                            f"{key}.{inner_key}: "
+                            f"{_csv_value(inner_value)}",
+                            styles["Normal"],
+                        )
+                    )
+            elif isinstance(value, list):
+                for index, item in enumerate(value):
+                    story.append(
+                        Paragraph(
+                            f"{key}[{index}]: {_csv_value(item)}",
+                            styles["Normal"],
+                        )
+                    )
+            else:
+                story.append(
+                    Paragraph(
+                        f"{key}: {_csv_value(value)}", styles["Normal"]
+                    )
+                )
+        story.append(Spacer(1, 12))
+
+    unavailable = report.get("unavailable") or []
+    if unavailable:
+        story.append(Paragraph("Unavailable metrics", styles["Heading2"]))
+        for item in unavailable:
+            story.append(
+                Paragraph(
+                    f"{item.get('metric')}: {item.get('reason')}",
+                    styles["Normal"],
+                )
+            )
+        story.append(Spacer(1, 12))
+
+    columns = report.get("columns") or []
+    if columns:
+        header = [column["label"] for column in columns]
+        data = [header]
+        for row in report.get("rows") or []:
+            data.append([
+                _csv_value(row.get(column["key"]))
+                for column in columns
+            ])
+
+        table = Table(data, repeatRows=1)
+        table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                 [colors.white, colors.HexColor("#f3f4f6")]),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ])
+        )
+        story.append(table)
+
+    document.build(story)
+    return buffer.getvalue()
+
+
+# ============================================================
 # DISPATCH
 # ============================================================
 
@@ -1126,32 +1392,39 @@ REPORT_BUILDERS = {
 def list_reports():
     """Report catalogue for the reports page."""
 
+    # Export formats are advertised only when the backend library
+    # that produces them is actually installed, so the frontend never
+    # offers a format the backend cannot honestly generate.
+    formats = ["csv"]
+    unavailable = []
+
+    if xlsx_available():
+        formats.append("xlsx")
+    else:  # pragma: no cover - environment dependent
+        unavailable.append({
+            "format": "xlsx",
+            "reason": "No spreadsheet library is installed.",
+        })
+
+    if pdf_available():
+        formats.append("pdf")
+    else:  # pragma: no cover - environment dependent
+        unavailable.append({
+            "format": "pdf",
+            "reason": "No PDF generation library is installed.",
+        })
+
     return {
         "generated_at": utc_now(),
         "reports": [
             {
                 "report_type": report_type,
                 "title": title,
-                "export_formats": ["csv"],
+                "export_formats": list(formats),
             }
             for report_type, title in REPORT_TYPES.items()
         ],
-        "export_formats_unavailable": [
-            {
-                "format": "pdf",
-                "reason": (
-                    "No PDF generation library is installed in the "
-                    "backend requirements."
-                ),
-            },
-            {
-                "format": "xlsx",
-                "reason": (
-                    "No spreadsheet library is installed in the "
-                    "backend requirements."
-                ),
-            },
-        ],
+        "export_formats_unavailable": unavailable,
     }
 
 
@@ -1183,4 +1456,8 @@ __all__ = [
     "generate_report",
     "list_reports",
     "render_report_csv",
+    "render_report_xlsx",
+    "render_report_pdf",
+    "xlsx_available",
+    "pdf_available",
 ]

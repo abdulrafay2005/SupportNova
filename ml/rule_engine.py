@@ -1416,6 +1416,12 @@ def has_account_compromise_signal(text):
         # Takeover / compromise
         "account takeover",
         "account hacked",
+        "hacked my account",
+        "someone hacked my account",
+        "my account was hacked",
+        "my account got hacked",
+        "my account has been hacked",
+        "my account is hacked",
         "account compromised",
         "account breached",
         "possible account takeover",
@@ -1903,33 +1909,43 @@ def check_escalations(context):
     # ESC02 - Personal data exposure
     # ========================================================
 
-    if has_data_exposure_signal(text):
+    # ESC02 is specifically for exposure of another person's
+    # data or personal information. Keep the existing broad
+    # variants but do not let every generic privacy complaint
+    # become an exposure incident.
+    #
+    # The ESC02 trigger condition covers another customer's data
+    # being "exposed OR received". Receiving another customer's
+    # data does not require an explicit "exposed/leaked" keyword,
+    # so those phrases must satisfy the guard on their own;
+    # otherwise the rule was unreachable for its own trigger
+    # (e.g. "I received another customer's personal data").
+    other_party_data_phrases = [
+        "another customer's data",
+        "another customer data",
+        "someone else's data",
+        "someone elses data",
+        "another customer's personal data",
+        "another customer personal data",
+        "someone else's personal data",
+        "someone elses personal data",
+        "received another customer's information",
+        "received another customer information",
+        "received someone else's information",
+        "received someone elses information",
+        "received another person's data",
+        "received another persons data",
+        "someone else's information",
+        "someone elses information"
+    ]
 
-        # ESC02 is specifically for exposure of another person's
-        # data or personal information. Keep the existing broad
-        # variants but do not let every generic privacy complaint
-        # become an exposure incident.
+    if has_data_exposure_signal(text) or text_has_any(
+        text, other_party_data_phrases
+    ):
 
         if text_has_any(
             text,
-            [
-                "another customer's data",
-                "another customer data",
-                "someone else's data",
-                "someone elses data",
-                "another customer's personal data",
-                "another customer personal data",
-                "someone else's personal data",
-                "someone elses personal data",
-                "received another customer's information",
-                "received another customer information",
-                "received someone else's information",
-                "received someone elses information",
-                "received another person's data",
-                "received another persons data",
-                "someone else's information",
-                "someone elses information"
-            ]
+            other_party_data_phrases
         ) or text_has_any(
             text,
             [
